@@ -48,7 +48,9 @@ const Profile = () => {
 	const logout = useAuthStore((state) => state.logout)
 	const user = useAuthStore((state) => state.user)
 
-	console.log("USER:", user)
+	if (!user) {
+		return null
+	}
 
 	return (
 		<SafeAreaView className="flex-1 bg-background" edges={["left", "right"]}>
@@ -56,7 +58,7 @@ const Profile = () => {
 				<View className="items-center">
 					<Image source={{ uri: mock.avatar }} className="w-24 h-24 rounded-full" />
 					<Text className="text-xl font-bold mt-3 text-onSurface">{user.name}</Text>
-					<Text className="text-sm text-onSurface">This is my about</Text>
+					<Text className="text-sm text-onSurface">{user.bio}</Text>
 
 					<Pressable className="mt-3 bg-primary px-5 py-2 rounded-[100px]">
 						<Text className="font-medium text-sm text-onSurface">Edit profile</Text>

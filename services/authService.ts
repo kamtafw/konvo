@@ -25,3 +25,8 @@ export const getMe = async () => {
 	const response = await api.get(ENDPOINTS.USER)
 	return response.data
 }
+
+export const refreshToken = async (refresh: string) => {
+	const response = await api.post(ENDPOINTS.REFRESH_TOKEN, { refresh })
+	return response.data
+}

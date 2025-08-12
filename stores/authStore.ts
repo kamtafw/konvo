@@ -1,19 +1,33 @@
-import { deleteItemAsync, getItem, setItem } from "expo-secure-store"
+import * as SecureStore from "expo-secure-store"
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 import * as authService from "../services/authService"
+
+// SecureStore adapter for zustand persist
+const secureStorage = {
+	getItem: async (name: string) => {
+		const value = await SecureStore.getItemAsync(name)
+		return value ?? null
+	},
+	setItem: async (name: string, value: string) => {
+		await SecureStore.setItemAsync(name, value)
+	},
+	removeItem: async (name: string) => {
+		await SecureStore.deleteItemAsync(name)
+	},
+}
 
 type AuthState = {
 	user: User | null
 	access: string | null
 	refresh: string | null
-	isLoading: boolean
 	error: string | null
+	loading: boolean
 
 	signup: (payload: any) => Promise<void>
 	login: (payload: any) => Promise<void>
+	refreshToken: () => Promise<void>
 	logout: () => void
-	restoreSession: () => Promise<void>
 }
 
 export const useAuthStore = create(
@@ -22,56 +36,63 @@ export const useAuthStore = create(
 			user: null,
 			access: null,
 			refresh: null,
-			isLoading: false,
 			error: null,
+			loading: false,
 
+			// SIGNUP
 			signup: async (payload) => {
-				set({ isLoading: true, error: null })
+				set({ loading: true, error: null })
 				try {
-					const response = await authService.signup(payload)
-					set({ user: response.user, access: response.access })
+					const { access, refresh } = await authService.signup(payload)
+					set({ access, refresh })
 				} catch (err: any) {
 					set({ error: err || "Signup failed." })
 				} finally {
-					set({ isLoading: false })
+					set({ loading: false })
 				}
 			},
+
+			// LOGIN
 			login: async (payload) => {
-				set({ isLoading: true, error: null })
+				set({ loading: true, error: null })
 				try {
-					const response = await authService.login(payload)
-					set({ user: response.user, access: response.access })
+					const { access, refresh } = await authService.login(payload)
+					set({ access, refresh })
 				} catch (err: any) {
 					set({ error: err || "Login failed." })
 				} finally {
-					set({ isLoading: false })
+					set({ loading: false })
 				}
 			},
+
+			// LOGOUT
 			logout: () => set({ user: null, access: null, refresh: null }),
-			restoreSession: async () => {
-				const access = get().access
-				if (access) {
-					try {
-						const user = await authService.getMe()
-						set({ user })
-					} catch {
-						set({ access: null, refresh: null, user: null })
-					}
+
+			// REFRESH TOKEN
+			refreshToken: async () => {
+				set({ loading: true, error: null })
+
+				const refresh = get().refresh
+				if (!refresh) return
+
+				try {
+					const { access } = await authService.refreshToken(refresh)
+					set({ access })
+				} catch {
+					set({ user: null, access: null, refresh: null, error: "Login failed." })
+				} finally {
+					set({ loading: false })
 				}
 			},
 		}),
 		{
-			name: "auth-store",
-			storage: createJSONStorage(() => ({
-				setItem,
-				getItem,
-				removeItem: deleteItemAsync,
-			})),
+			name: "auth-storage",
+			storage: createJSONStorage(() => secureStorage),
 			partialize: (state) => ({
 				user: state.user,
 				access: state.access,
 				refresh: state.refresh,
-				isLoading: state.isLoading,
+				loading: state.loading,
 				error: state.error,
 			}),
 		}

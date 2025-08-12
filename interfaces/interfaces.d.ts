@@ -2,6 +2,10 @@ interface User {
     id: string;
     name: string;
     avatar: string;
+    phone:string;
+    email:string;
+    bio: string;
+    date_joined: string;
 }
 
 type MessageStatus = "sent" | "delivered" | "read";
