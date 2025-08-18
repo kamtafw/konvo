@@ -3,6 +3,7 @@ import MessageInputBar from "@/components/MessageInputBar"
 import { chats, users } from "@/data/mock"
 import { useBackToDismissKeyboard } from "@/hooks/useKeyboard"
 import { useTheme } from "@/providers/ThemeProvider"
+import { getMessages } from "@/services/chat"
 import { Ionicons } from "@expo/vector-icons"
 import { Stack, useLocalSearchParams, useRouter } from "expo-router"
 import { cssInterop } from "nativewind"
@@ -39,10 +40,10 @@ const BackButton = ({ router }: { router: any }) => {
 	)
 }
 
-const Title = ({ name, avatar }: any) => {
+const Title = ({ name, avatar_url }: any) => {
 	return (
 		<View className="flex-row items-center gap-4">
-			<Image source={{ uri: avatar }} className="w-12 h-12 rounded-full" />
+			<Image source={{ uri: avatar_url }} className="w-12 h-12 rounded-full" />
 			<Text className="text-xl text-onSurface font-bold">{name}</Text>
 		</View>
 	)
@@ -54,6 +55,9 @@ const Chat = () => {
 	const { top } = useSafeAreaInsets()
 	const { theme } = useTheme()
 	const router = useRouter()
+
+	console.log("ID:", id)
+	// const messages = await getMessages(id)
 
 	const chatId = typeof id === "string" ? id : id?.[0]
 	const chat = chats.find((c) => c.id === chatId)
@@ -94,10 +98,11 @@ const Chat = () => {
 						borderBottomWidth: 0.5,
 						borderBottomColor: theme === "dark" ? "#334155" : "#e5e7eb",
 						height: 60 + top,
-						padding: 10,
+						padding: top,
 					},
-					headerLeft: () => <BackButton router={router} />,
-					headerTitle: (props) => <Title name={friend.name} avatar={friend.avatar} {...props} />,
+					// headerLeft: () => <BackButton router={router} />,
+					headerTintColor: theme === "dark" ? "#e5e7eb" : "#334155",
+					headerTitle: (props) => <Title name={friend.name} avatar_url={friend.avatar} {...props} />,
 				}}
 			/>
 			<SafeAreaView

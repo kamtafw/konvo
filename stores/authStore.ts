@@ -1,7 +1,9 @@
+import * as authService from "@/services/auth"
 import * as SecureStore from "expo-secure-store"
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
-import * as authService from "../services/authService"
+import { useChatStore } from "./chatStore"
+import { useProfileStore } from "./profileStore"
 
 // SecureStore adapter for zustand persist
 const secureStorage = {
@@ -17,12 +19,16 @@ const secureStorage = {
 	},
 }
 
+type User = {
+	id: string
+	name: string
+	phone: string
+}
+
 type AuthState = {
 	user: User | null
 	access: string | null
 	refresh: string | null
-	error: string | null
-	loading: boolean
 
 	signup: (payload: any) => Promise<void>
 	login: (payload: any) => Promise<void>
@@ -36,52 +42,43 @@ export const useAuthStore = create(
 			user: null,
 			access: null,
 			refresh: null,
-			error: null,
-			loading: false,
 
 			// SIGNUP
 			signup: async (payload) => {
-				set({ loading: true, error: null })
-				try {
-					const { access, refresh } = await authService.signup(payload)
-					set({ access, refresh })
-				} catch (err: any) {
-					set({ error: err || "Signup failed." })
-				} finally {
-					set({ loading: false })
-				}
+				const { user, access, refresh } = await authService.signup(payload)
+				set({ user, access, refresh })
+				await useProfileStore.getState().fetchProfile({ force: true })
 			},
 
 			// LOGIN
 			login: async (payload) => {
-				set({ loading: true, error: null })
-				try {
-					const { access, refresh } = await authService.login(payload)
-					set({ access, refresh })
-				} catch (err: any) {
-					set({ error: err || "Login failed." })
-				} finally {
-					set({ loading: false })
-				}
+				const { user, access, refresh } = await authService.login(payload)
+				set({ user, access, refresh })
+				await useProfileStore.getState().fetchProfile({ force: true })
+				await useChatStore.getState().fetchChats({ force: true })
 			},
 
 			// LOGOUT
-			logout: () => set({ user: null, access: null, refresh: null }),
+			logout: () => {
+				set({ user: null, access: null, refresh: null })
+				useProfileStore.getState().reset()
+				useChatStore.getState().reset()
+			},
 
 			// REFRESH TOKEN
 			refreshToken: async () => {
-				set({ loading: true, error: null })
-
 				const refresh = get().refresh
 				if (!refresh) return
 
 				try {
 					const { access } = await authService.refreshToken(refresh)
 					set({ access })
+					const data = await authService.getUserProfile()
+					set({ user: data })
+					await useProfileStore.getState().fetchProfile({ force: true })
+					await useChatStore.getState().fetchChats({ force: true })
 				} catch {
-					set({ user: null, access: null, refresh: null, error: "Login failed." })
-				} finally {
-					set({ loading: false })
+					get().logout()
 				}
 			},
 		}),
@@ -92,8 +89,6 @@ export const useAuthStore = create(
 				user: state.user,
 				access: state.access,
 				refresh: state.refresh,
-				loading: state.loading,
-				error: state.error,
 			}),
 		}
 	)

@@ -15,7 +15,7 @@ cssInterop(Ionicons, {
 	},
 })
 
-const InputField = ({ label, error, ...props }) => (
+const InputField = ({ label, error, ...props }: any) => (
 	<View className="mb-5 gap-2">
 		<Text className="text-sm text-textPrimary">{label}</Text>
 		<TextInput
@@ -167,9 +167,9 @@ const Account = () => {
 				{isSignup && (
 					<InputField
 						label="Name"
-						placeholder="Simon"
+						placeholder="Paul"
 						value={form.name}
-						onChangeText={(t) => updateField("name", t)}
+						onChangeText={(t: string) => updateField("name", t)}
 						onBlur={() => handleBlur("name")}
 						onFocus={() => handleFocus("name")}
 						error={touched.name && errors.name}
@@ -184,7 +184,7 @@ const Account = () => {
 						keyboardType="email-address"
 						autoCapitalize="none"
 						value={form.email}
-						onChange={(t) => updateField("email", t)}
+						onChange={(t: string) => updateField("email", t)}
 						onBlur={() => handleBlur("email")}
 						onFocus={() => handleFocus("email")}
 						error={touched.email && errors.email}

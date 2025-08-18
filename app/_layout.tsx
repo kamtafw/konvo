@@ -2,6 +2,7 @@ import { useBootstrapApp } from "@/hooks/useBootstrapApp"
 import { ThemeProvider } from "@/providers/ThemeProvider"
 import { Stack } from "expo-router"
 import { ActivityIndicator, View } from "react-native"
+import { GestureHandlerRootView } from "react-native-gesture-handler"
 import { SafeAreaProvider } from "react-native-safe-area-context"
 import Toast from "react-native-toast-message"
 import "./global.css"
@@ -31,11 +32,13 @@ const AppContent = () => {
 
 export default function App() {
 	return (
-		<ThemeProvider>
+		<GestureHandlerRootView className="flex-1">
 			<SafeAreaProvider>
-				<AppContent />
-				<Toast />
+				<ThemeProvider>
+					<AppContent />
+					<Toast />
+				</ThemeProvider>
 			</SafeAreaProvider>
-		</ThemeProvider>
+		</GestureHandlerRootView>
 	)
 }

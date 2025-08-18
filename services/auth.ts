@@ -21,12 +21,24 @@ export const signup = async ({ phone, password, name, email }: Account) => {
 	return response.data
 }
 
-export const getMe = async () => {
-	const response = await api.get(ENDPOINTS.USER)
+export const refreshToken = async (refresh: string) => {
+	const response = await api.post(ENDPOINTS.REFRESH_TOKEN, { refresh })
 	return response.data
 }
 
-export const refreshToken = async (refresh: string) => {
-	const response = await api.post(ENDPOINTS.REFRESH_TOKEN, { refresh })
+export const getUserProfile = async () => {
+	const response = await api.get(ENDPOINTS.ME)
+	return response.data
+}
+
+export const updateUserProfile = async (patch: Partial<Profile>) => {
+	const response = await api.put(ENDPOINTS.ME, patch)
+	return response.data
+}
+
+export const updateUserAvatar = async (form: FormData) => {
+	const response = await api.post(ENDPOINTS.UPLOAD_AVATAR, form, {
+		headers: { "Content-Type": "multipart/form-data" },
+	})
 	return response.data
 }

@@ -34,3 +34,11 @@ export const validateName = (name: string) => {
 	if (!name) return true
 	return String(name).length >= 4
 }
+
+export const validateGithub = (name: string) => {
+	return true
+}
+
+export const validateWebsite = (name: string) => {
+	return true
+}

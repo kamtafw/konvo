@@ -1,7 +1,8 @@
 import { useAuthStore } from "@/stores/authStore"
 import axios from "axios"
 
-const BASE_URL = "http://172.31.125.16:8000/api/"
+const BASE_URL = "http://10.185.14.79:8000/api/"
+// const BASE_URL = "http://10.169.140.88:8000/api/"
 
 const api = axios.create({
 	baseURL: BASE_URL,
@@ -13,9 +14,9 @@ const api = axios.create({
 
 api.interceptors.request.use(
 	async (config) => {
-		const token = useAuthStore.getState().token
-		if (token) {
-			config.headers.Authorization = `Bearer ${token}`
+		const access = useAuthStore.getState().access
+		if (access) {
+			config.headers.Authorization = `Bearer ${access}`
 		}
 		return config
 	},
