@@ -2,20 +2,9 @@ import { useProfileForm } from "@/hooks/useProfileForm"
 import { useTheme } from "@/providers/ThemeProvider"
 import { useProfileStore } from "@/stores/profileStore"
 import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons"
-import clsx from "clsx"
-import * as ImagePicker from "expo-image-picker"
 import { Stack, useNavigation } from "expo-router"
 import { cssInterop } from "nativewind"
-import {
-	ActivityIndicator,
-	Alert,
-	Image,
-	Keyboard,
-	ScrollView,
-	Text,
-	TextInput,
-	View,
-} from "react-native"
+import { ActivityIndicator, Alert, Keyboard, ScrollView, Text, TextInput, View } from "react-native"
 import { TouchableOpacity } from "react-native-gesture-handler"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -59,21 +48,6 @@ const LabeledInput = ({ label, icon, error, ...props }: any) => (
 	</View>
 )
 
-const Avatar = ({ uri, onPress }: { uri?: string; onPress?: () => void }) => {
-	return (
-		<TouchableOpacity className="w-28 h-28" activeOpacity={0.8} onPress={onPress}>
-			<Image
-				className={clsx("w-28 h-28 rounded-full", !uri && "bg-primary")}
-				source={uri ? { uri } : require("../../../assets/images/avatar.png")}
-				resizeMode="cover"
-			/>
-			<View className="absolute p-1.5 rounded-full bg-surface elevation-sm right-1.5 bottom-1.5">
-				<MaterialIcons name="photo-camera" size={18} className="text-onSurface" />
-			</View>
-		</TouchableOpacity>
-	)
-}
-
 const EditProfile = () => {
 	const { top } = useSafeAreaInsets()
 	const { theme } = useTheme()
@@ -81,34 +55,9 @@ const EditProfile = () => {
 
 	const profile = useProfileStore((state) => state.profile)
 	const loading = useProfileStore((state) => state.loading)
-	const updateAvatar = useProfileStore((state) => state.updateAvatar)
 	const updateProfile = useProfileStore((state) => state.updateProfile)
 
 	const { form, errors, updateField, validateAll } = useProfileForm(profile)
-
-	const pickAvatar = async () => {
-		const { status, granted } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-		if (status !== "granted" || !granted) {
-			Alert.alert("Permission needed", "We need access to your photos to update your avatar.")
-			return
-		}
-
-		const result = await ImagePicker.launchImageLibraryAsync({
-			mediaTypes: ["images"],
-			allowsEditing: true,
-			aspect: [1, 1],
-			quality: 1,
-			selectionLimit: 1,
-		})
-		if (!result.canceled && result.assets?.[0]?.uri) {
-			try {
-				await updateAvatar(result.assets[0].uri)
-				Alert.alert("Avatar updated")
-			} catch (e: any) {
-				Alert.alert("Upload failed", e.message)
-			}
-		}
-	}
 
 	const handleSubmit = async () => {
 		Keyboard.dismiss()
@@ -130,24 +79,19 @@ const EditProfile = () => {
 				options={{
 					title: "Edit Profile",
 					headerTitleAlign: "center",
-
 					headerStyle: {
-						backgroundColor: theme === "dark" ? "#0f172a" : "#f9fafb",
+						backgroundColor: theme === "dark" ? "#1e293b" : "#ffffff",
 						borderBottomWidth: 0.5,
 						borderBottomColor: theme === "dark" ? "#334155" : "#e5e7eb",
 						height: 60 + top,
 						paddingTop: top,
 					},
-					headerTitle: () => <Title />,
 					headerTintColor: theme === "dark" ? "#e5e7eb" : "#334155",
+					headerTitle: () => <Title />,
 				}}
 			/>
 			<SafeAreaView className="flex-1 bg-background" edges={["left", "right", "bottom"]}>
 				<ScrollView className="flex-1 px-4 pt-6" keyboardShouldPersistTaps="handled">
-					<View className="items-center">
-						{/* <Avatar uri={profile?.avatar_url} onPress={pickAvatar} /> */}
-					</View>
-
 					<View className="h-4" />
 
 					{/* NAME */}
@@ -207,7 +151,7 @@ const EditProfile = () => {
 					<TouchableOpacity
 						// className="mt-3 bg-primary py-3.5 px-4 rounded-xl items-center"
 						style={{
-							backgroundColor: "#4e46e5",
+							backgroundColor: theme === "dark" ? "#6366f1" : "#4e46e5",
 							marginTop: 12,
 							paddingHorizontal: 16,
 							paddingVertical: 16,

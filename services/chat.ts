@@ -6,6 +6,6 @@ export const getChats = async () => {
 }
 
 export const getMessages = async (chatId: string) => {
-	const response = await api.post(ENDPOINTS.MESSAGES(chatId))
+	const response = await api.get(ENDPOINTS.MESSAGES(chatId))
 	return response.data
 }

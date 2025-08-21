@@ -28,7 +28,7 @@ export const useBootstrapApp = () => {
 			await refreshToken()
 
 			await fetchProfile({ force: true })
-			await fetchChats({ force: true })
+			await fetchChats({ force: false }) // let cache freshness logic decide
 
 			// background fetch all data
 			// Promise.allSettled([fetchProfile()])

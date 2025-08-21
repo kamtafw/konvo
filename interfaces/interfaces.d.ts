@@ -5,7 +5,7 @@ type Participant = {
 	avatar_url: string
 }
 
-type LastMessage = {
+type Message = {
 	id: string
 	sender: Participant
 	text: string
@@ -17,7 +17,7 @@ interface Chat {
 	id: string
 	participants: Participant[]
 	created_at: string
-	last_message: LastMessage | null
+	last_message: Message | null
 	unread_count: number
 	pinned?: boolean
 	typing?: boolean
@@ -37,7 +37,7 @@ interface Profile {
 
 type MessageStatus = "sent" | "delivered" | "read"
 
-interface Message {
+interface Message2 {
 	id: string
 	sender: string // could be `User["id"]` if you're strict
 	content: string

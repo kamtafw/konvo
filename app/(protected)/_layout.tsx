@@ -6,7 +6,6 @@ export default function ProtectedLayout() {
 		<SafeAreaView className="flex-1 bg-background" edges={["left", "right"]}>
 			<Stack
 				screenOptions={{
-					headerShown: true,
 					headerShadowVisible: false,
 					gestureEnabled: true,
 				}}

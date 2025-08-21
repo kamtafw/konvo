@@ -5,7 +5,7 @@ import { useProfileStore } from "@/stores/profileStore"
 import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons"
 import clsx from "clsx"
 import * as ImagePicker from "expo-image-picker"
-import { useNavigation } from "expo-router"
+import { router } from "expo-router"
 import { cssInterop } from "nativewind"
 import { useEffect, useRef, useState } from "react"
 import {
@@ -99,7 +99,6 @@ const Avatar = ({ uri, onPress }: { uri?: string; onPress?: () => void }) => {
 
 const Profile = () => {
 	const { theme } = useTheme()
-	const navigation = useNavigation()
 
 	const [notifications, setNotifications] = useState(false)
 
@@ -137,7 +136,7 @@ const Profile = () => {
 	return (
 		<SafeAreaView className="flex-1 bg-background" edges={["left", "right"]}>
 			<ScrollView className="flex-1 px-4 pt-6">
-				<View className="items-center">
+				<View className="items-center mb-5">
 					<Avatar uri={profile.avatar_url} onPress={pickAvatar} />
 					<Text className="text-xl font-bold mt-3 text-onSurface">{profile.name}</Text>
 					<Text className="text-sm text-onSurface">{profile.bio}</Text>
@@ -155,8 +154,7 @@ const Profile = () => {
 				<View className="mb-5">
 					<View className="flex-row items-center justify-between mx-3 my-2">
 						<Text className="text-base text-muted font-bold">Information</Text>
-						<TouchableOpacity onPress={() => navigation.navigate("profile/edit" as never)}>
-							{/* router.push(`/profile/edit`) */}
+						<TouchableOpacity onPress={() => router.push(`/profile/edit`)}>
 							<Text className="font-medium text-sm text-muted">Edit profile</Text>
 						</TouchableOpacity>
 					</View>
