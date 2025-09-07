@@ -7,10 +7,10 @@ type Participant = {
 
 type Message = {
 	id: string
-	sender: Participant
+	sender: Participant | string
 	text: string
 	created_at: string
-	is_read: boolean
+	read_at?: string
 }
 
 interface Chat {
@@ -33,22 +33,19 @@ interface Profile {
 	website: string
 	github: string
 	date_joined: string
+	avatarUrl: string
+	dateJoined: string
 }
 
-type MessageStatus = "sent" | "delivered" | "read"
-
-interface Message2 {
+interface Friend {
 	id: string
-	sender: string // could be `User["id"]` if you're strict
-	content: string
-	timestamp: string
-	status: MessageStatus
+	friend: Profile
+	createdAt: string
 }
 
-// interface Chat {
-// 	id: string
-// 	participants: string[] // array of user IDs
-// 	pinned?: boolean
-// 	typing?: boolean
-// 	messages: Message[]
-// }
+interface FriendRequest {
+	id: string
+	from: Profile
+	to?: Profile
+	createdAt: string
+}

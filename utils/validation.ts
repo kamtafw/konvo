@@ -1,3 +1,10 @@
+const emailRegex = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i
+
+export const validateEmail = (email: string) => {
+	if (!email) return false // or true depending on your UX
+	return emailRegex.test(String(email).toLowerCase())
+}
+
 export const normalizePhone = (phone: string) => {
 	const phoneNumber = String(phone).trim()
 
@@ -6,15 +13,6 @@ export const normalizePhone = (phone: string) => {
 		: phoneNumber.startsWith("234")
 			? "+" + phoneNumber
 			: phoneNumber
-}
-
-export const validateEmail = (email: string) => {
-	if (!email) return true
-	return String(email)
-		.toLowerCase()
-		.match(
-			/^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
-		)
 }
 
 export const validatePassword = (password: string) => {

@@ -1,12 +1,14 @@
-import ChatBubble from "@/components/ChatBubble"
+import MessageBubble from "@/components/MessageBubble"
 import MessageInputBar from "@/components/MessageInputBar"
 import { useBackToDismissKeyboard } from "@/hooks/useKeyboard"
+import { useRelativeTime } from "@/hooks/useRelativeTime"
 import { useTheme } from "@/providers/ThemeProvider"
 import { useAuthStore } from "@/stores/authStore"
+import { useChatSocketStore } from "@/stores/chatSocketStore"
 import { useChatStore } from "@/stores/chatStore"
 import { Ionicons } from "@expo/vector-icons"
 import clsx from "clsx"
-import { Stack, useLocalSearchParams, useRouter } from "expo-router"
+import { Stack, useLocalSearchParams } from "expo-router"
 import { cssInterop } from "nativewind"
 import { useEffect, useRef, useState } from "react"
 import {
@@ -46,14 +48,26 @@ const BackButton = ({ router }: { router: any }) => {
 	)
 }
 
-const Title = ({ name, uri }: any) => {
+const Title = ({ name, uri, presence }: any) => {
+	const isOnline = presence?.status === "online"
+	const relativeLastSeen = useRelativeTime(presence?.last_seen)
+
 	return (
 		<View className="flex-row items-center gap-2">
 			<Image
 				source={uri ? { uri } : require("../../../assets/images/avatar.png")}
 				className={clsx("w-10 h-10 rounded-full", !uri && "bg-primary")}
 			/>
-			<Text className="text-xl text-onSurface font-bold">{name}</Text>
+			<View>
+				<Text className="text-xl text-onSurface font-bold">{name}</Text>
+				{isOnline ? (
+					<Text className="text-sm text-primary">Online</Text>
+				) : (
+					relativeLastSeen && (
+						<Text className="text-sm text-textSecondary">last seen {relativeLastSeen}</Text>
+					)
+				)}
+			</View>
 		</View>
 	)
 }
@@ -62,24 +76,34 @@ const Chat = () => {
 	useBackToDismissKeyboard()
 	const { id } = useLocalSearchParams()
 	const { theme } = useTheme()
-	const router = useRouter()
 	const user = useAuthStore((state) => state.user)
-	const { chats, messages, loadingMessages, fetchMessages } = useChatStore()
+	const { sendMessage } = useChatSocketStore()
+	const { chats, messages, loadingMessages, typing, presence } = useChatStore()
 
 	const chatId = typeof id === "string" ? id : id?.[0]
 
 	const chat = chats.find((c) => String(c.id) === chatId)
 	const msgs = messages[chatId] || []
 	const friend = chat?.participants.find((p) => p.id !== user?.id)
+	const friendTyping = friend ? typing?.[chatId]?.[friend?.id] : false
+	const friendPresence = friend ? presence?.[friend?.id] : null
 
 	const listRef = useRef<FlatList>(null)
 	const [keyboardHeight, setKeyboardHeight] = useState(0)
 
-	// fetch messages on mount
 	useEffect(() => {
-		if (chatId) {
-			fetchMessages(chatId)
+		if (!chatId) return
+
+		useChatStore.getState().setActiveChat(String(chatId))
+
+		const doInit = async () => {
+			await useChatStore.getState().fetchMessages(String(chatId))
+			useChatSocketStore.getState().readChat(String(chatId))
 		}
+
+		doInit()
+
+		return () => useChatStore.getState().setActiveChat(null)
 	}, [chatId])
 
 	// Manage keyboard height manually
@@ -115,7 +139,9 @@ const Chat = () => {
 					},
 					headerTintColor: theme === "dark" ? "#e5e7eb" : "#334155",
 					// headerLeft: () => <BackButton router={router} />,
-					headerTitle: () => <Title name={friend?.name} uri={friend?.avatar_url} />,
+					headerTitle: () => (
+						<Title name={friend?.name} uri={friend?.avatar_url} presence={friendPresence} />
+					),
 				}}
 			/>
 			<SafeAreaView className="flex-1 bg-background">
@@ -135,7 +161,7 @@ const Chat = () => {
 								data={msgs}
 								keyExtractor={(item) => item.id}
 								renderItem={({ item }) => (
-									<ChatBubble message={item} isOwn={item.sender.id === user?.id} />
+									<MessageBubble message={item} isMine={String(item.sender) === String(user?.id)} />
 								)}
 								keyboardShouldPersistTaps="always"
 								contentContainerStyle={{
@@ -147,13 +173,18 @@ const Chat = () => {
 								showsVerticalScrollIndicator={false}
 							/>
 						)}
+						{friendTyping && (
+							<View className="px-4 pb-1 mb-2">
+								<Text className="italic text-sm text-muted">{friend?.name} is typing...</Text>
+							</View>
+						)}
 						{/* ⬇️ This stays fixed above the keyboard */}
 						<View
 							style={{
 								paddingBottom: Platform.OS === "ios" ? 0 : keyboardHeight,
 							}}
 						>
-							<MessageInputBar chatId={chat.id} />
+							<MessageInputBar chatId={chat.id} sendMessage={sendMessage} />
 						</View>
 					</View>
 				</KeyboardAvoidingView>

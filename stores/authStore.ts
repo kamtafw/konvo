@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store"
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 import { useChatStore } from "./chatStore"
+import { useFriendStore } from "./friendStore"
 import { useProfileStore } from "./profileStore"
 
 // SecureStore adapter for zustand persist
@@ -63,6 +64,7 @@ export const useAuthStore = create(
 				set({ user: null, access: null, refresh: null })
 				useProfileStore.getState().reset()
 				useChatStore.getState().reset()
+				useFriendStore.getState().reset()
 			},
 
 			// REFRESH TOKEN

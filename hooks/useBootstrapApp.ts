@@ -1,5 +1,8 @@
-// import * as Notifications from "expo-notifications"
+import { useChatSocketStore } from "@/stores/chatSocketStore"
 import { useChatStore } from "@/stores/chatStore"
+import { useFriendSocketStore } from "@/stores/friendSocketStore"
+import { useFriendStore } from "@/stores/friendStore"
+import { usePresenceSocketStore } from "@/stores/presenceSocketStore"
 import { useEffect, useState } from "react"
 import { useAuthStore } from "../stores/authStore"
 import { useProfileStore } from "../stores/profileStore"
@@ -8,39 +11,30 @@ import { useSettingsStore } from "../stores/settingsStore"
 export const useBootstrapApp = () => {
 	const [ready, setReady] = useState(false)
 	const user = useAuthStore((state) => state.user)
-	const fetchChats = useChatStore((state) => state.fetchChats)
-	const refreshToken = useAuthStore((state) => state.refreshToken)
-	const pushEnabled = useSettingsStore((state) => state.pushEnabled)
-	const fetchProfile = useProfileStore((state) => state.fetchProfile)
-	const setPushEnabled = useSettingsStore((state) => state.setPushEnabled)
+	const token = useAuthStore((state) => state.access)
+	const connectChatSocket = useChatSocketStore((state) => state.connect)
+	const connectFriendSocket = useFriendSocketStore((state) => state.connect)
+	const connectPresenceSocket = usePresenceSocketStore((state) => state.connect)
 
 	useEffect(() => {
 		const init = async () => {
-			// rehydrate stores
 			await Promise.all([
 				useAuthStore.persist.rehydrate(),
 				useChatStore.persist.rehydrate(),
+				useFriendStore.persist.rehydrate(),
 				useProfileStore.persist.rehydrate(),
 				useSettingsStore.persist.rehydrate(),
 			])
 
-			// auto-login if refresh token exists
-			await refreshToken()
+			await useAuthStore.getState().refreshToken()
+			await useProfileStore.getState().fetchProfile({ force: true })
+			await useChatStore.getState().fetchChats({ force: false })
 
-			await fetchProfile({ force: true })
-			await fetchChats({ force: false }) // let cache freshness logic decide
-
-			// background fetch all data
-			// Promise.allSettled([fetchProfile()])
-
-			// sync push reference
-			// if (pushEnabled) {
-			// 	const { status } = await Notifications.getPermissionsAsync()
-			// 	if (status !== "granted") {
-			// 		const request = await Notifications.requestPermissionsAsync()
-			// 		setPushEnabled(request.status === "granted")
-			// 	}
-			// }
+			if (token) {
+				connectChatSocket(token)
+				connectFriendSocket(token)
+				connectPresenceSocket(token)
+			}
 
 			setReady(true)
 		}

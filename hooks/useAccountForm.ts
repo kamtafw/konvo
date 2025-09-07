@@ -7,13 +7,14 @@ import {
 } from "@/utils/validation"
 import { useState } from "react"
 
-export const useFormHandler = (isSignup: boolean) => {
+export const useAccountForm = (isSignup: boolean) => {
 	const initialForm = {
 		phone: "",
 		name: "",
 		email: "",
 		password: "",
 		confirmPassword: "",
+		secureText: null,
 	}
 	const initialErrors = {
 		phone: "",

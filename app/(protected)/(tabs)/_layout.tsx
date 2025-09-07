@@ -46,9 +46,9 @@ const _Layout = () => {
 				}}
 			/>
 			<Tabs.Screen
-				name="friends"
+				name="community"
 				options={{
-					title: "Friends",
+					title: "Community",
 
 					tabBarIcon: ({ focused, color }) => (
 						<Ionicons

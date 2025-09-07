@@ -2,15 +2,15 @@ import * as chatService from "@/services/chat"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
+import { useAuthStore } from "./authStore"
 
 interface Chat {
 	id: string
 	participants: Participant[]
-	created_at: string
 	last_message: Message | null
 	unread_count: number
+	created_at: string
 	pinned?: boolean
-	typing?: boolean
 }
 
 type ChatState = {
@@ -18,19 +18,30 @@ type ChatState = {
 	messages: Record<string, Message[]> // key: chatId
 	loadingChats: boolean
 	loadingMessages: Record<string, boolean>
-	error: string | null
 	lastFetchedChatsAt: number | null
 	lastFetchedMessagesAt: Record<string, number>
+	typing: Record<string, object>
+	typingTimers: Record<string, number>
+	presence: Record<string, object>
+	activeChatId: string | null
+	error: string | null
 	hydrated: boolean
 
 	fetchChats: (opts?: { force?: boolean; maxAgeMs?: number }) => Promise<void>
-	fetchMessages: (chatId: string, opts?: { force?: boolean; maxAgeMs?: number }) => Promise<void>
+	startChatLocal: (placeholderId: string, realChat: Chat) => void
 	upsertChat: (chat: Chat) => void
 	removeChat: (chatId: string) => void
+
+	fetchMessages: (chatId: string, opts?: { force?: boolean; maxAgeMs?: number }) => Promise<void>
 	addMessage: (chatId: string, message: Message) => void
 	upsertMessage: (chatId: string, message: Message) => void
 	replaceMessages: (chatId: string, messages: Message[]) => void
-	markChatRead: (chatId: string) => void
+	markMessagesAsRead: (chatId: string, readerId: string) => void
+
+	setActiveChat: (chatId: string | null) => void
+	setTyping: (chatId: string, userId: string, typing: boolean) => void
+	setPresence: (userId: string, status: "online" | "offline", last_seen: string | null) => void
+
 	reset: () => void
 }
 
@@ -41,12 +52,16 @@ export const useChatStore = create(
 			messages: {},
 			loadingChats: false,
 			loadingMessages: {},
-			error: null,
 			lastFetchedChatsAt: null,
 			lastFetchedMessagesAt: {},
+			typing: {}, // {[chatId]: {[userId]: boolean}}
+			typingTimers: {},
+			presence: {}, // {[userId]: {status: "online"|"offline", last_seen: string}}
+			activeChatId: null,
+			error: null,
 			hydrated: false,
 
-			fetchChats: async ({ force = false, maxAgeMs = 30_000 } = {}) => {
+			fetchChats: async ({ force = false, maxAgeMs = 60_000 } = {}) => {
 				const { lastFetchedChatsAt, chats } = get()
 				const isStale = !lastFetchedChatsAt || Date.now() - lastFetchedChatsAt > maxAgeMs
 				if (!force && chats.length > 0 && !isStale) return
@@ -54,7 +69,8 @@ export const useChatStore = create(
 				set({ loadingChats: true, error: null })
 				try {
 					const data = await chatService.getChats()
-					set({ chats: data, lastFetchedChatsAt: Date.now() })
+					const normalized = data.map((c: any) => ({ ...c, id: String(c.id) }))
+					set({ chats: normalized, lastFetchedChatsAt: Date.now() })
 				} catch (e: any) {
 					set({ error: e?.message || "Failed to load chats" })
 				} finally {
@@ -62,7 +78,83 @@ export const useChatStore = create(
 				}
 			},
 
-			fetchMessages: async (chatId, { force = false, maxAgeMs = 30_000 } = {}) => {
+			// TODO: Review Code
+			startChatLocal: (placeholderId, realChat) => {
+				set((state) => {
+					// move messages from placeholderId to realChat.id
+					const placeholderMessages = state.messages[placeholderId] || []
+					const existingMessages = { ...state.messages }
+					if (placeholderMessages.length) {
+						existingMessages[realChat.id] = [...(existingMessages[realChat.id] || [])]
+					}
+					delete existingMessages[placeholderId]
+
+					// replace chats array
+					const chatsWithoutPlaceholder = state.chats.filter((c) => c.id !== placeholderId)
+					const idx = chatsWithoutPlaceholder.findIndex((c) => c.id === realChat.id)
+					if (idx !== -1) {
+						// merge
+						chatsWithoutPlaceholder[idx] = { ...chatsWithoutPlaceholder[idx], ...realChat }
+						return { chats: chatsWithoutPlaceholder, messages: existingMessages }
+					}
+					return { chats: [realChat, ...chatsWithoutPlaceholder], messages: existingMessages }
+				})
+			},
+
+			upsertChat: (incoming) => {
+				const incomingId = String((incoming as any).id)
+
+				set((state) => {
+					const idx = state.chats.findIndex((c) => String(c.id) === incomingId)
+					const active = state.activeChatId === incomingId
+
+					if (idx !== -1) {
+						const existing = state.chats[idx]
+						const merged = { ...existing, ...incoming }
+
+						if (active) {
+							merged.unread_count = 0
+						} else {
+							if (typeof (incoming as any).unread_count === "number") {
+								merged.unread_count = (incoming as any).unread_count
+							}
+						}
+
+						if ((incoming as any).last_message) {
+							merged.last_message = (incoming as any).last_message
+						}
+
+						const updated = [...state.chats]
+						updated[idx] = merged
+
+						// updated.splice(idx, 1)
+						// updated.unshift(merged)
+						return { chats: updated }
+					}
+
+					// new chat — ensure id is string and unread_count respects activeChatId
+					const newChat = {
+						...incoming,
+						id: incomingId,
+						unread_count: (incoming as any).unread_count || 0,
+					} as Chat
+					if (state.activeChatId === incomingId) newChat.unread_count = 0
+					return { chats: [newChat, ...state.chats] }
+				})
+			},
+
+			// TODO: Review Code
+			removeChat: (chatId) => {
+				const chatIdStr = String(chatId)
+				set((state) => ({
+					chats: state.chats.filter((c) => String(c.id) !== chatIdStr),
+					messages: Object.fromEntries(
+						Object.entries(state.messages).filter(([id]) => id !== chatIdStr)
+					),
+				}))
+			},
+
+			fetchMessages: async (chatId, { force = false, maxAgeMs = 60_000 } = {}) => {
 				const { lastFetchedMessagesAt, messages } = get()
 				const lastFetchedAt = lastFetchedMessagesAt[chatId]
 				const isStale = !lastFetchedAt || Date.now() - lastFetchedAt > maxAgeMs
@@ -74,8 +166,13 @@ export const useChatStore = create(
 				}))
 				try {
 					const data = await chatService.getMessages(chatId)
+					const normalized = data.map((m: any) => ({
+						...m,
+						id: String(m.id),
+						sender: String(m.sender),
+					}))
 					set((state) => ({
-						messages: { ...state.messages, [chatId]: data },
+						messages: { ...state.messages, [chatId]: normalized },
 						lastFetchedMessagesAt: { ...state.lastFetchedMessagesAt, [chatId]: Date.now() },
 					}))
 				} catch (e: any) {
@@ -87,78 +184,140 @@ export const useChatStore = create(
 				}
 			},
 
-			upsertChat: (chat) => {
-				set((state) => {
-					const idx = state.chats.findIndex((c) => c.id === chat.id)
-					if (idx !== -1) {
-						const updated = [...state.chats]
-						updated[idx] = { ...updated[idx], ...chat }
-						return { chats: updated }
-					}
-					return { chats: [chat, ...state.chats] }
-				})
-			},
-
-			removeChat: (chatId) => {
-				set((state) => ({
-					chats: state.chats.filter((c) => c.id !== chatId),
-					messages: Object.fromEntries(
-						Object.entries(state.messages).filter(([id]) => id !== chatId)
-					),
-				}))
-			},
-
 			addMessage: (chatId, message) => {
+				const chatIdStr = String(chatId)
+				const currentUser = String(useAuthStore.getState().user?.id || "")
+				const isMine = String(message.sender) === currentUser
+				const activeChatId = get().activeChatId
+
 				set((state) => {
-					const existing = state.messages[chatId] || []
-					return {
-						messages: {
-							...state.messages,
-							[chatId]: [...existing, message],
-						},
-						chats: state.chats.map((c) =>
-							c.id === chatId
-								? {
-										...c,
-										last_message: message,
-										unread_count: c.unread_count + 1,
-									}
-								: c
-						),
-					}
+					const existing = state.messages[chatIdStr] || []
+					const msgs = [
+						...existing,
+						{ ...message, id: String(message.id), sender: String(message.sender) },
+					]
+
+					const chats = state.chats.map((c) => {
+						if (String(c.id) !== chatIdStr) return c
+
+						const inOpenChat = activeChatId === chatIdStr
+						const nextUnread = isMine || inOpenChat ? 0 : (c.unread_count || 0) + 1
+
+						return {
+							...c,
+							last_message: message,
+							unread_count: nextUnread,
+						}
+					})
+
+					// if chat isn't present in array (maybe new chat), add it
+					const chatExists = state.chats.some((c) => String(c.id) === chatIdStr)
+					// TODO: this new chat lacks participants
+					const updatedChats = chatExists
+						? chats
+						: [
+								{
+									id: chatIdStr,
+									last_message: message,
+									unread_count: isMine || activeChatId === chatIdStr ? 0 : 1,
+								},
+								...chats,
+							]
+
+					return { messages: { ...state.messages, [chatIdStr]: msgs }, chats }
 				})
 			},
 
 			upsertMessage: (chatId, message) => {
 				set((state) => {
-					const msgs = state.messages[chatId] || []
-					const idx = msgs.findIndex((m) => m.id === message.id)
+					const chatIdStr = String(chatId)
+					const msgs = state.messages[chatIdStr] || []
+					const idx = msgs.findIndex((m) => m.id === String(message.id))
 					if (idx !== -1) {
 						const updated = [...msgs]
 						updated[idx] = { ...updated[idx], ...message }
-						return { messages: { ...state.messages, [chatId]: updated } }
+						return { messages: { ...state.messages, [chatIdStr]: updated } }
 					}
 					return {
-						messages: { ...state.messages, [chatId]: [...msgs, message] },
+						messages: { ...state.messages, [chatIdStr]: [...msgs, message] },
 					}
 				})
 			},
 
-			replaceMessages: (chatId, messages: Message[]) => {
+			replaceMessages: (chatId, messages) => {
 				set((state) => ({
 					messages: { ...state.messages, [chatId]: messages },
 				}))
 			},
 
-			markChatRead: (chatId) => {
+			markMessagesAsRead: (chatId, readerId) => {
+				const chatIdStr = String(chatId)
+				const readerIdStr = String(readerId)
+
+				set((state) => {
+					const msgs = (state.messages[chatIdStr] || []).map((m) =>
+						!m.read_at && String(m.sender) !== readerIdStr
+							? { ...m, read_at: new Date().toISOString() }
+							: m
+					)
+
+					const chats = state.chats.map((c) =>
+						String(c.id) === chatIdStr ? { ...c, unread_count: 0 } : c
+					)
+
+					return { messages: { ...state.messages, [chatIdStr]: msgs }, chats }
+				})
+			},
+
+			setActiveChat: (chatId) => set({ activeChatId: chatId }),
+
+			// TODO: Review Code
+			setTyping: (chatId, userId, typing) => {
+				const state = get()
+
+				// clear old timer
+				const timerKey = `${chatId}-${userId}`
+				if (state.typingTimers[timerKey]) {
+					clearTimeout(state.typingTimers[timerKey])
+				}
+
+				set((prev) => ({
+					typing: {
+						...prev.typing,
+						[chatId]: {
+							...(prev.typing[chatId] || {}),
+							[userId]: typing,
+						},
+					},
+				}))
+
+				if (typing) {
+					const timeout = setTimeout(() => {
+						set((prev) => ({
+							typing: {
+								...prev.typing,
+								[chatId]: {
+									...(prev.typing[chatId] || {}),
+									[userId]: false,
+								},
+							},
+						}))
+					}, 5000)
+
+					set((prev) => ({
+						typingTimers: {
+							...prev.typingTimers,
+							[timerKey]: timeout,
+						},
+					}))
+				}
+			},
+
+			setPresence: (userId, status, last_seen) => {
 				set((state) => ({
-					chats: state.chats.map((c) => (c.id === chatId ? { ...c, unread_count: 0 } : c)),
-					messages: {
-						...state.messages,
-						[chatId]: (state.messages[chatId] || []).map((m) => ({
-							...m,
-							is_read: true,
-						})),
+					presence: {
+						...state.presence,
+						[userId]: { status, last_seen },
 					},
 				}))
 			},
@@ -169,9 +328,9 @@ export const useChatStore = create(
 					messages: {},
 					loadingChats: false,
 					loadingMessages: {},
-					error: null,
 					lastFetchedChatsAt: null,
 					lastFetchedMessagesAt: {},
+					error: null,
 					hydrated: false,
 				}),
 		}),
@@ -188,7 +347,7 @@ export const useChatStore = create(
 				if (!state) return
 
 				const { lastFetchedChatsAt, chats } = state
-				const isStale = !lastFetchedChatsAt || Date.now() - lastFetchedChatsAt > 30_000
+				const isStale = !lastFetchedChatsAt || Date.now() - lastFetchedChatsAt > 60_000
 
 				if (!chats || chats.length === 0 || isStale) {
 					await state.fetchChats?.({ force: false })

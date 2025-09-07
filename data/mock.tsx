@@ -156,3 +156,36 @@ export const chats: Chat[] = [
 		],
 	},
 ]
+
+export const requests: Friend[] = [
+	{
+		id: "u1",
+		name: "Dauda",
+		avatar_url: "https://i.pravatar.cc/150?img=1",
+	},
+	{
+		id: "u2",
+		name: "Adams",
+		avatar_url: "https://i.pravatar.cc/150?img=2",
+	},
+	{
+		id: "u3",
+		name: "Godwin",
+		avatar_url: "https://i.pravatar.cc/150?img=3",
+	},
+	{
+		id: "u4",
+		name: "Ding",
+		avatar_url: "https://i.pravatar.cc/150?img=4",
+	},
+	{
+		id: "u5",
+		name: "Shaks",
+		avatar_url: "https://i.pravatar.cc/150?img=5",
+	},
+	{
+		id: "u6",
+		name: "Tosin",
+		avatar_url: "https://i.pravatar.cc/150?img=6",
+	},
+]

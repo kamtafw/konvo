@@ -1,8 +1,10 @@
 import { useAuthStore } from "@/stores/authStore"
 import axios from "axios"
+import { ENDPOINTS } from "./endpoints"
 
-const BASE_URL = "http://10.185.14.79:8000/api/"
-// const BASE_URL = "http://10.169.140.88:8000/api/"
+const BASE_URL = `http://${ENDPOINTS.IPV4}:8000/api/`
+// const BASE_URL = "http://10.188.0.34:8000/api/"
+
 
 const api = axios.create({
 	baseURL: BASE_URL,
