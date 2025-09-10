@@ -6,6 +6,7 @@ import { useTheme } from "@/providers/ThemeProvider"
 import { useAuthStore } from "@/stores/authStore"
 import { useChatSocketStore } from "@/stores/chatSocketStore"
 import { useChatStore } from "@/stores/chatStore"
+import { useFriendStore } from "@/stores/friendStore"
 import { Ionicons } from "@expo/vector-icons"
 import clsx from "clsx"
 import { Stack, useLocalSearchParams } from "expo-router"
@@ -74,18 +75,31 @@ const Title = ({ name, uri, presence }: any) => {
 
 const Chat = () => {
 	useBackToDismissKeyboard()
-	const { id } = useLocalSearchParams()
+	const { id, friendId } = useLocalSearchParams()
 	const { theme } = useTheme()
 	const user = useAuthStore((state) => state.user)
+	const friendList = useFriendStore((state) => state.friendList)
 	const { sendMessage } = useChatSocketStore()
 	const { chats, messages, loadingMessages, typing, presence } = useChatStore()
 
-	const chatId = typeof id === "string" ? id : id?.[0]
+	const resolveChatAndFriend = (): any => {
+		if (id && id !== "new") {
+			const chat = chats.find((c) => String(c.id) === String(id))
+			const friend = chat?.participants.find((p) => String(p.id) !== String(user?.id))
+			return { chat, friend, chatId: String(id) }
+		} else if (friendId) {
+			const chat = chats.find((c) => c.participants.some((p) => String(p.id) === friendId))
+			const friend = friendList.find((f) => String(f.friend.id) === friendId)?.friend
+			return { chat, friend, chatId: chatId ? String(chat?.id) : null }
+		}
 
-	const chat = chats.find((c) => String(c.id) === chatId)
+		return { chat: null, friend: null, chatId: null }
+	}
+
+	const { friend, chatId } = resolveChatAndFriend()
+
 	const msgs = messages[chatId] || []
-	const friend = chat?.participants.find((p) => p.id !== user?.id)
-	const friendTyping = friend ? typing?.[chatId]?.[friend?.id] : false
+	const friendTyping = friend ? typing?.[chatId]?.[friendId] : false
 	const friendPresence = friend ? presence?.[friend?.id] : null
 
 	const listRef = useRef<FlatList>(null)
@@ -119,14 +133,6 @@ const Chat = () => {
 			hideSub.remove()
 		}
 	}, [])
-
-	if (!chat) {
-		return (
-			<View className="flex-1 items-center justify-center bg-background">
-				<Text className="text-muted text-lg">Chat not found</Text>
-			</View>
-		)
-	}
 
 	return (
 		<>
@@ -184,7 +190,7 @@ const Chat = () => {
 								paddingBottom: Platform.OS === "ios" ? 0 : keyboardHeight,
 							}}
 						>
-							<MessageInputBar chatId={chat.id} sendMessage={sendMessage} />
+							<MessageInputBar chatId={chatId} sendMessage={sendMessage} friendId={friendId} />
 						</View>
 					</View>
 				</KeyboardAvoidingView>

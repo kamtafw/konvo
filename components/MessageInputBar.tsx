@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons"
 import clsx from "clsx"
 import { cssInterop } from "nativewind"
 import { useState } from "react"
-import { Pressable, TextInput, View } from "react-native"
+import { TextInput, TouchableOpacity, View } from "react-native"
 
 cssInterop(Ionicons, {
 	className: {
@@ -12,13 +12,13 @@ cssInterop(Ionicons, {
 	},
 })
 
-const MessageInputBar = ({ chatId, sendMessage }: any) => {
+const MessageInputBar = ({ chatId, sendMessage, friendId }: any) => {
 	const [message, setMessage] = useState("")
 	const { theme } = useTheme()
 
-	const send = () => {
+	const handleSendMessage = () => {
 		if (message.trim() === "") return
-		sendMessage(chatId, message)
+		sendMessage(chatId, message, friendId)
 		setMessage("")
 	}
 
@@ -31,9 +31,9 @@ const MessageInputBar = ({ chatId, sendMessage }: any) => {
 				className="flex-1 mr-2 p-4 bg-zinc-100 dark:bg-zinc-800 rounded-full text-onSurface"
 				placeholderTextColor="#aaa"
 			/>
-			<Pressable onPress={send} className="p-2 rounded-full bg-primary">
+			<TouchableOpacity onPress={handleSendMessage} className="p-2 rounded-full bg-primary">
 				<Ionicons name="send" size={18} className={clsx(theme === "light" && "text-white")} />
-			</Pressable>
+			</TouchableOpacity>
 		</View>
 	)
 }

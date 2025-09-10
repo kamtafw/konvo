@@ -10,7 +10,7 @@ import dayjs from "dayjs"
 import relativeTime from "dayjs/plugin/relativeTime"
 import { router } from "expo-router"
 import { cssInterop } from "nativewind"
-import { useCallback, useMemo, useState } from "react"
+import React, { useCallback, useMemo, useState } from "react"
 import { FlatList, Image, Modal, Text, TextInput, TouchableOpacity, View } from "react-native"
 
 dayjs.extend(relativeTime)
@@ -37,12 +37,13 @@ interface FriendItemProps {
 interface FriendListModalProps {
 	friends: Friend[]
 	visible: boolean
-	onSelect: (user: Profile) => void
+	// onSelect: (user: Profile) => void
 	onClose: () => void
 }
 
-const FriendListModal = ({ friends, visible, onSelect, onClose }: FriendListModalProps) => {
+const FriendListModal = ({ friends, visible, onClose }: FriendListModalProps) => {
 	const [searchQuery, setSearchQuery] = useState("")
+	const chats = useChatStore((state) => state.chats)
 
 	const filteredFriends = useMemo(() => {
 		return [...friends]
@@ -50,7 +51,21 @@ const FriendListModal = ({ friends, visible, onSelect, onClose }: FriendListModa
 			.sort((a, b) => a.friend.name.localeCompare(b.friend.name))
 	}, [friends, searchQuery])
 
-	const FriendItem = ({ user, onProfilePress }: FriendItemProps) => {
+	const handleProfilePress = (friend: Profile) => {
+		const existingChat = chats.find((chat) =>
+			chat.participants.some((p) => String(p.id) === String(friend.id))
+		)
+
+		if (existingChat) {
+			router.push({ pathname: `/chat/[id]`, params: { id: String(existingChat.id) } })
+		} else {
+			router.push({ pathname: `/chat/[id]`, params: { id: "new", friendId: String(friend.id) } })
+		}
+		onClose()
+	}
+
+	// eslint-disable-next-line react/display-name
+	const FriendItem = React.memo(({ user, onProfilePress }: FriendItemProps) => {
 		const uri = user.avatar_url
 
 		return (
@@ -70,7 +85,7 @@ const FriendListModal = ({ friends, visible, onSelect, onClose }: FriendListModa
 				</TouchableOpacity>
 			</View>
 		)
-	}
+	})
 
 	return (
 		<Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -97,15 +112,12 @@ const FriendListModal = ({ friends, visible, onSelect, onClose }: FriendListModa
 				/>
 
 				{/* Friends list */}
-				{/* <ScrollView>
-					{filteredFriends.map((f) => (
-						<FriendItem key={f.id} user={f.friend} onProfilePress={onSelect} />
-					))}
-				</ScrollView> */}
 				<FlatList
 					data={filteredFriends}
 					keyExtractor={(item) => item.id}
-					renderItem={({ item }) => <FriendItem user={item.friend} onProfilePress={onSelect} />}
+					renderItem={({ item }) => (
+						<FriendItem user={item.friend} onProfilePress={handleProfilePress} />
+					)}
 					ListEmptyComponent={
 						<View className="p-4">
 							<Text className="text-center text-muted">No friends found</Text>
@@ -123,16 +135,6 @@ const FriendListModal = ({ friends, visible, onSelect, onClose }: FriendListModa
 		</Modal>
 	)
 }
-
-const ChatSkeleton = () => (
-	<View className="flex-row items-center p-4 border-b border-border bg-surface">
-		<View className="w-12 h-12 rounded-full bg-primary mr-4" />
-		<View className="flex-1">
-			<View className="w-2/3 h-4 bg-muted rounded mb-2" />
-			<View className="w-1/2 h-3 bg-muted rounded" />
-		</View>
-	</View>
-)
 
 const ChatList = () => {
 	const { ready } = useBootstrapApp()
@@ -155,6 +157,17 @@ const ChatList = () => {
 	)
 
 	const filteredChats = useMemo(() => {
+		if (!searchQuery.trim()) {
+			return [...chats].sort((a, b) => {
+				const pinnedDiff = (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)
+				if (pinnedDiff !== 0) return pinnedDiff
+				const aTime = new Date(a.last_message?.created_at || a.created_at).getTime()
+				const bTime = new Date(b.last_message?.created_at || b.created_at).getTime()
+				return bTime - aTime
+			})
+		}
+
+		const query = searchQuery.toLowerCase()
 		return [...chats]
 			.filter((chat) => {
 				const friends = chat.participants.filter((p) => p.id !== userId)
@@ -163,7 +176,6 @@ const ChatList = () => {
 					.join(", ")
 					.toLowerCase()
 				const lastMsg = chat.last_message?.text?.toLowerCase() || ""
-				const query = searchQuery.toLowerCase()
 				return displayName.includes(query) || lastMsg.includes(query)
 			})
 			.sort((a, b) => {
@@ -175,18 +187,43 @@ const ChatList = () => {
 			})
 	}, [chats, searchQuery, userId])
 
-	const renderItem = ({ item }: { item: Chat }) => {
-		const friend = item.participants.find((p) => String(p.id) !== userId)!
-		const isTyping = !!typingMap?.[item.id]?.[friend?.id]
+	const ChatSkeleton = () => (
+		<View className="animate-pulse">
+			{Array(7)
+				.fill(null)
+				.map((_, idx) => (
+					<View key={idx} className="flex-row items-center p-4 border-b border-border bg-surface">
+						<View className="w-12 h-12 rounded-full bg-primary mr-4" />
+						<View className="flex-1">
+							<View className="w-2/3 h-4 bg-muted rounded mb-2" />
+							<View className="w-1/2 h-3 bg-muted rounded" />
+						</View>
+					</View>
+				))}
+		</View>
+	)
+
+	// eslint-disable-next-line react/display-name
+	const ChatItem = React.memo(({ chat }: { chat: Chat }) => {
+		const friend = chat.participants.find((p) => String(p.id) !== userId)!
+		const isTyping = !!typingMap?.[chat.id]?.[friend?.id]
 		const displayName = friend?.name || "Unknown"
 		const uri = friend?.avatar_url
-		const lastMessage = item.last_message
-		const unreadCount = item.unread_count
-		const isPinned = item.pinned
+		const lastMessage = chat.last_message
+		const unreadCount = chat.unread_count
+		const isPinned = chat.pinned
+
+		// router.push({
+		//   pathname: '/teams/[id]',
+		//   params: {
+		//     id: team._id,
+		//     teamName: team.name
+		//   }
+		// });
 
 		return (
 			<TouchableOpacity
-				onPress={() => router.push(`/chat/${item.id}`)}
+				onPress={() => router.push({ pathname: `/chat/[id]`, params: { id: chat.id } })}
 				className="flex-row items-center p-4 border-b border-border bg-surface"
 			>
 				<Image
@@ -231,7 +268,7 @@ const ChatList = () => {
 				</View>
 			</TouchableOpacity>
 		)
-	}
+	})
 
 	return (
 		<View className="flex-1 pt-6 bg-background">
@@ -244,11 +281,7 @@ const ChatList = () => {
 			/>
 
 			{!ready ? (
-				<FlatList
-					data={Array(7).fill(null)}
-					keyExtractor={(_, idx) => `skeleton-${idx}`}
-					renderItem={() => <ChatSkeleton />}
-				/>
+				<ChatSkeleton />
 			) : filteredChats.length === 0 ? (
 				<View className="flex-1 items-center justify-center">
 					<Text className="text-muted">No chats yet</Text>
@@ -257,7 +290,7 @@ const ChatList = () => {
 				<FlatList
 					data={filteredChats}
 					keyExtractor={(item) => item.id}
-					renderItem={renderItem}
+					renderItem={({ item }) => <ChatItem chat={item} />}
 					contentContainerStyle={{ paddingBottom: 20 }}
 					className="bg-background"
 				/>
@@ -268,10 +301,6 @@ const ChatList = () => {
 			<FriendListModal
 				friends={friendList}
 				visible={showFriendList}
-				onSelect={(friend) => {
-					console.log("Start chat with:", friend.name)
-					setShowFriendList(false)
-				}}
 				onClose={() => setShowFriendList(false)}
 			/>
 		</View>

@@ -91,7 +91,7 @@ export const useChatStore = create(
 
 					// replace chats array
 					const chatsWithoutPlaceholder = state.chats.filter((c) => c.id !== placeholderId)
-					const idx = chatsWithoutPlaceholder.findIndex((c) => c.id === realChat.id)
+					const idx = chatsWithoutPlaceholder.findIndex((c) => String(c.id) === String(realChat.id))
 					if (idx !== -1) {
 						// merge
 						chatsWithoutPlaceholder[idx] = { ...chatsWithoutPlaceholder[idx], ...realChat }
@@ -101,44 +101,35 @@ export const useChatStore = create(
 				})
 			},
 
-			upsertChat: (incoming) => {
-				const incomingId = String((incoming as any).id)
+			upsertChat: (chat) => {
+				const chatId = String(chat.id)
 
 				set((state) => {
-					const idx = state.chats.findIndex((c) => String(c.id) === incomingId)
-					const active = state.activeChatId === incomingId
+					const idx = state.chats.findIndex((c) => String(c.id) === chatId)
+					const active = state.activeChatId === chatId
 
 					if (idx !== -1) {
-						const existing = state.chats[idx]
-						const merged = { ...existing, ...incoming }
+						const existing = [...state.chats]
+						const merged = { ...existing[idx], ...chat }
 
-						if (active) {
-							merged.unread_count = 0
-						} else {
-							if (typeof (incoming as any).unread_count === "number") {
-								merged.unread_count = (incoming as any).unread_count
-							}
-						}
-
-						if ((incoming as any).last_message) {
-							merged.last_message = (incoming as any).last_message
-						}
+						merged.unread_count = active ? 0 : chat.unread_count || 0
+						merged.last_message = chat.last_message
 
 						const updated = [...state.chats]
 						updated[idx] = merged
 
-						// updated.splice(idx, 1)
-						// updated.unshift(merged)
 						return { chats: updated }
 					}
 
-					// new chat — ensure id is string and unread_count respects activeChatId
 					const newChat = {
-						...incoming,
-						id: incomingId,
-						unread_count: (incoming as any).unread_count || 0,
-					} as Chat
-					if (state.activeChatId === incomingId) newChat.unread_count = 0
+						...chat,
+						id: chatId,
+						unread_count: chat.unread_count || 0,
+					}
+
+					newChat.unread_count = active ? 0 : chat.unread_count || 0
+					newChat.last_message = chat.last_message
+
 					return { chats: [newChat, ...state.chats] }
 				})
 			},

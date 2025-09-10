@@ -7,7 +7,7 @@ type ChatSocketState = {
 	ws: WebSocket | null
 	connect: (token: string) => void
 	disconnect: () => void
-	sendMessage: (chatId: string, text: string) => void
+	sendMessage: (chatId: string, text: string, otherUserId?: string) => void
 	readChat: (chatId: string) => void
 }
 
@@ -34,7 +34,7 @@ export const useChatSocketStore = create<ChatSocketState>((set, get) => ({
 				const { payload } = data
 
 				switch (data.type) {
-					case "message": {
+					case "chat": {
 						const { chat_id, id, sender, text, created_at } = payload
 						chatStore.addMessage(String(chat_id), {
 							id: String(id),
@@ -48,24 +48,28 @@ export const useChatSocketStore = create<ChatSocketState>((set, get) => ({
 						}
 						break
 					}
+
 					case "typing": {
 						const { chat_id, sender, is_typing } = payload
 						chatStore.setTyping(String(chat_id), String(sender), !!is_typing)
 						break
 					}
+
 					case "read": {
 						const { chat_id, user } = payload
 						chatStore.markMessagesAsRead(String(chat_id), String(user))
 						break
 					}
+
 					case "chat_update": {
-						const incoming = {
+						const updatedChat = {
 							...payload,
 							id: String((payload as any).id),
 						}
-						chatStore.upsertChat(incoming)
+						chatStore.upsertChat(updatedChat)
 						break
 					}
+
 					default: {
 						console.warn("Unknown Chat event:", data)
 					}
@@ -89,12 +93,17 @@ export const useChatSocketStore = create<ChatSocketState>((set, get) => ({
 		set({ ws: null })
 	},
 
-	sendMessage: (chatId, text) => {
+	sendMessage: (chatId, text, otherUserId) => {
 		const ws = get().ws
 		if (ws?.readyState === WebSocket.OPEN) {
-			ws.send(
-				JSON.stringify({ type: "message", payload: { chat_id: String(chatId), message: text } })
-			)
+			const type = `chat:${!chatId ? "new" : "existing"}`
+			const payload = {
+				chat_id: String(chatId),
+				message: text,
+				other_user_id: String(otherUserId),
+			}
+
+			ws.send(JSON.stringify({ type, payload }))
 		}
 	},
 
