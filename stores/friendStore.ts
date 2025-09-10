@@ -6,15 +6,19 @@ import { createJSONStorage, persist } from "zustand/middleware"
 type FriendState = {
 	friendList: Friend[]
 	friendRequests: FriendRequest[]
+	friendSuggestions: Profile[]
 	loadingFriendList: boolean
 	loadingFriendRequests: boolean
+	loadingFriendSuggestions: boolean
 	lastFetchedFriendListAt: number | null
 	lastFetchedFriendRequestsAt: number | null
+	lastFetchedFriendSuggestionsAt: number | null
 	error: string | null
 	hydrated: boolean
 
 	fetchFriendList: (opts?: { force?: boolean; maxAgeMs?: number }) => Promise<void>
 	fetchFriendRequests: (opts?: { force?: boolean; maxAgeMs?: number }) => Promise<void>
+	fetchFriendSuggestions: (opts?: { force?: boolean; maxAgeMs?: number }) => Promise<void>
 	sendFriendRequest: (userId: string) => Promise<void>
 	respondFriendRequest: (requestId: string, action: "accept" | "reject") => Promise<void>
 
@@ -33,10 +37,13 @@ export const useFriendStore = create(
 		(set, get) => ({
 			friendList: [],
 			friendRequests: [],
+			friendSuggestions: [],
 			loadingFriendList: false,
 			loadingFriendRequests: false,
+			loadingFriendSuggestions: false,
 			lastFetchedFriendListAt: null,
 			lastFetchedFriendRequestsAt: null,
+			lastFetchedFriendSuggestionsAt: null,
 			error: null,
 			hydrated: false,
 
@@ -80,6 +87,29 @@ export const useFriendStore = create(
 					set({ error: e?.message || "Failed to load friend-requests" })
 				} finally {
 					set({ loadingFriendRequests: false })
+				}
+			},
+
+			fetchFriendSuggestions: async ({ force = false, maxAgeMs = 120_000 } = {}) => {
+				const { lastFetchedFriendSuggestionsAt, friendSuggestions } = get()
+				const isStale =
+					!lastFetchedFriendSuggestionsAt || Date.now() - lastFetchedFriendSuggestionsAt > maxAgeMs
+				if (!force && friendSuggestions.length > 0 && !isStale) return
+
+				set({ loadingFriendSuggestions: true, error: null })
+				try {
+					const data = await friendService.getFriendSuggestions()
+					const normalized = data.map((f: any) => ({
+						...f,
+						id: String(f.id),
+						avatarUrl: f.avatar_url,
+						createdAt: f.created_at,
+					}))
+					set({ friendSuggestions: normalized, lastFetchedFriendSuggestionsAt: Date.now() })
+				} catch (e: any) {
+					set({ error: e?.message || "Failed to load friend-suggestions" })
+				} finally {
+					set({ loadingFriendSuggestions: false })
 				}
 			},
 
@@ -150,8 +180,10 @@ export const useFriendStore = create(
 				set({
 					friendList: [],
 					friendRequests: [],
+					friendSuggestions: [],
 					loadingFriendList: false,
 					loadingFriendRequests: false,
+					loadingFriendSuggestions: false,
 					error: null,
 					hydrated: false,
 				})
@@ -163,8 +195,10 @@ export const useFriendStore = create(
 			partialize: (state) => ({
 				friendList: state.friendList,
 				friendRequests: state.friendRequests,
+				friendSuggestions: state.friendSuggestions,
 				lastFetchedFriendListAt: state.lastFetchedFriendListAt,
 				lastFetchedFriendRequestsAt: state.lastFetchedFriendRequestsAt,
+				lastFetchedFriendSuggestionsAt: state.lastFetchedFriendSuggestionsAt,
 			}),
 			onRehydrateStorage: () => async (state) => {
 				if (!state) return

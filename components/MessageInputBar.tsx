@@ -12,6 +12,7 @@ cssInterop(Ionicons, {
 	},
 })
 
+// TODO: look into the times where the message is sent as if coming from the other user
 const MessageInputBar = ({ chatId, sendMessage, friendId }: any) => {
 	const [message, setMessage] = useState("")
 	const { theme } = useTheme()

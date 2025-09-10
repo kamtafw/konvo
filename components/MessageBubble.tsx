@@ -1,4 +1,13 @@
+import { Ionicons } from "@expo/vector-icons"
+import { cssInterop } from "nativewind"
 import { Text, View } from "react-native"
+
+cssInterop(Ionicons, {
+	className: {
+		target: "style",
+		nativeStyleToProp: { height: true, width: true, size: true },
+	},
+})
 
 interface Props {
 	message: Message
@@ -18,13 +27,23 @@ const MessageBubble = ({ message, isMine }: Props) => {
 					<Text className={`${textColor} pb-1`}>{message.text}</Text>
 
 					{/* Timestamp + status */}
-					<Text className={`text-[10px] ${timestampColor}`}>
-						{new Date(message.created_at).toLocaleTimeString([], {
-							hour: "2-digit",
-							minute: "2-digit",
-						})}{" "}
-						{isMine ? (!message.read_at ? "✓" : "✓✓") : ""}
-					</Text>
+					<View className="flex-row items-end">
+						<Text className={`text-[10px] ${timestampColor}`}>
+							{new Date(message.created_at).toLocaleTimeString([], {
+								hour: "2-digit",
+								minute: "2-digit",
+							})}{" "}
+						</Text>
+						{isMine ? (
+							message.read_at ? (
+								<Ionicons name="checkmark-done-outline" size={12} className={timestampColor} />
+							) : (
+								<Ionicons name="checkmark-outline" size={12} className={timestampColor} />
+							)
+						) : (
+							""
+						)}
+					</View>
 				</View>
 			</View>
 		)

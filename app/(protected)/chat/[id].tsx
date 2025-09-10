@@ -77,9 +77,10 @@ const Chat = () => {
 	useBackToDismissKeyboard()
 	const { id, friendId } = useLocalSearchParams()
 	const { theme } = useTheme()
+
+	const { sendMessage } = useChatSocketStore()
 	const user = useAuthStore((state) => state.user)
 	const friendList = useFriendStore((state) => state.friendList)
-	const { sendMessage } = useChatSocketStore()
 	const { chats, messages, loadingMessages, typing, presence } = useChatStore()
 
 	const resolveChatAndFriend = (): any => {
@@ -88,9 +89,31 @@ const Chat = () => {
 			const friend = chat?.participants.find((p) => String(p.id) !== String(user?.id))
 			return { chat, friend, chatId: String(id) }
 		} else if (friendId) {
-			const chat = chats.find((c) => c.participants.some((p) => String(p.id) === friendId))
+			// first check if a real chat exists
+			const existingChat = chats.find(
+				(c) =>
+					c.participants.some((p) => String(p.id) === friendId) &&
+					!String(c.id).startsWith("placeholder_") // exclude placeholder chats
+			)
+
+			if (existingChat) {
+				const friend = existingChat.participants.find((p) => String(p.id) !== String(user?.id))
+				return { chat: existingChat, friend, chatId: String(existingChat.id) }
+			}
+
+			// if no real chat exists, check for placeholder chats
+			const placeholderChat = chats.find(
+				(c) => String(c.id).includes(String(friendId)) && String(c.id).startsWith("placeholder_")
+			)
+
+			if (placeholderChat) {
+				const friend = friendList.find((f) => String(f.friend.id) === friendId)?.friend
+				return { chat: placeholderChat, friend, chatId: String(placeholderChat.id) }
+			}
+
+			// no chat exists yet, return friend info for new chat
 			const friend = friendList.find((f) => String(f.friend.id) === friendId)?.friend
-			return { chat, friend, chatId: chatId ? String(chat?.id) : null }
+			return { chat: null, friend, chatId: null }
 		}
 
 		return { chat: null, friend: null, chatId: null }
@@ -111,7 +134,10 @@ const Chat = () => {
 		useChatStore.getState().setActiveChat(String(chatId))
 
 		const doInit = async () => {
-			await useChatStore.getState().fetchMessages(String(chatId))
+			// only fetch messages if it's not a placeholder chat
+			if (!String(chatId).startsWith("placeholder_")) {
+				await useChatStore.getState().fetchMessages(String(chatId))
+			}
 			useChatSocketStore.getState().readChat(String(chatId))
 		}
 

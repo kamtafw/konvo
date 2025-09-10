@@ -10,6 +10,11 @@ export const getFriendRequests = async () => {
 	return response.data
 }
 
+export const getFriendSuggestions = async () => {
+	const response = await api.get(ENDPOINTS.FRIEND_SUGGESTIONS)
+	return response.data
+}
+
 export const sendFriendRequest = async (userId: string) => {
 	const response = await api.post(ENDPOINTS.SEND_FRIEND_REQUEST, { to_user: userId })
 	return response.data

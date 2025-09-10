@@ -34,6 +34,10 @@ export const useFriendSocketStore = create<FriendSocketState>((set, get) => ({
 						// friendStore.addFriendRequest(payload)
 						break
 
+					case "friend_request:receive":
+						friendStore.addFriendRequest(payload)
+						break
+
 					case "friend_request:accept":
 						const { request_id, ...friend } = payload
 						if (request_id) friendStore.removeFriendRequest(request_id)

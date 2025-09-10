@@ -4,6 +4,8 @@ import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 import { useAuthStore } from "./authStore"
 
+
+
 interface Chat {
 	id: string
 	participants: Participant[]
@@ -78,7 +80,6 @@ export const useChatStore = create(
 				}
 			},
 
-			// TODO: Review Code
 			startChatLocal: (placeholderId, realChat) => {
 				set((state) => {
 					// move messages from placeholderId to realChat.id
@@ -93,7 +94,6 @@ export const useChatStore = create(
 					const chatsWithoutPlaceholder = state.chats.filter((c) => c.id !== placeholderId)
 					const idx = chatsWithoutPlaceholder.findIndex((c) => String(c.id) === String(realChat.id))
 					if (idx !== -1) {
-						// merge
 						chatsWithoutPlaceholder[idx] = { ...chatsWithoutPlaceholder[idx], ...realChat }
 						return { chats: chatsWithoutPlaceholder, messages: existingMessages }
 					}
@@ -200,20 +200,6 @@ export const useChatStore = create(
 							unread_count: nextUnread,
 						}
 					})
-
-					// if chat isn't present in array (maybe new chat), add it
-					const chatExists = state.chats.some((c) => String(c.id) === chatIdStr)
-					// TODO: this new chat lacks participants
-					const updatedChats = chatExists
-						? chats
-						: [
-								{
-									id: chatIdStr,
-									last_message: message,
-									unread_count: isMine || activeChatId === chatIdStr ? 0 : 1,
-								},
-								...chats,
-							]
 
 					return { messages: { ...state.messages, [chatIdStr]: msgs }, chats }
 				})

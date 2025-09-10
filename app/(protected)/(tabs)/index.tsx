@@ -213,14 +213,6 @@ const ChatList = () => {
 		const unreadCount = chat.unread_count
 		const isPinned = chat.pinned
 
-		// router.push({
-		//   pathname: '/teams/[id]',
-		//   params: {
-		//     id: team._id,
-		//     teamName: team.name
-		//   }
-		// });
-
 		return (
 			<TouchableOpacity
 				onPress={() => router.push({ pathname: `/chat/[id]`, params: { id: chat.id } })}

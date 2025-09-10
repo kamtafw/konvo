@@ -23,7 +23,13 @@ interface FriendRequestItemProps {
 	onRespondPress: (requestId: string, action: "accept" | "reject") => void
 }
 
-interface FriendRequestModalProps {
+interface FriendSuggestionItemProps {
+	item: Profile
+	onProfilePress: (user: Profile) => void
+	onRespondPress: (requestId: string, action: "accept" | "reject") => void
+}
+
+interface FriendModalProps {
 	user: Profile | null
 	visible: boolean
 	onClose: () => void
@@ -41,7 +47,7 @@ const InfoRow = ({ icon, label, value, last = false }: any) => {
 	)
 }
 
-const FriendRequestModal = ({ user, visible, onClose }: FriendRequestModalProps) => {
+const FriendModal = ({ user, visible, onClose }: FriendModalProps) => {
 	const uri = user?.avatar_url
 
 	return (
@@ -124,6 +130,36 @@ const FriendRequestItem = ({ item, onProfilePress, onRespondPress }: FriendReque
 	)
 }
 
+const FriendSuggestionItem = ({ item, onProfilePress }: FriendSuggestionItemProps) => {
+	const uri = item?.avatarUrl
+
+	return (
+		<View className="flex-row items-center px-1 py-4 border-b border-border">
+			<TouchableOpacity
+				className="flex-1 flex-row items-center"
+				onPress={() => onProfilePress(item)}
+			>
+				<Image
+					className={`w-12 h-12 rounded-full mr-4 ${!uri && "bg-primary"}`}
+					source={uri ? { uri } : require("../../../assets/images/avatar.png")}
+				/>
+				<View className="flex-1">
+					<Text className="text-lg font-semibold text-onSurface mb-1">{item?.name}</Text>
+					<Text className="text-sm text-muted">{item?.bio}</Text>
+				</View>
+			</TouchableOpacity>
+			<View className="flex-row items-center gap-4">
+				<TouchableOpacity className="border border-error bg-red-100 rounded-full">
+					<Ionicons name="remove-outline" size={20} className="text-error p-2" />
+				</TouchableOpacity>
+				<TouchableOpacity className="border border-primary bg-purple-100 rounded-full">
+					<Ionicons name="person-add-outline" size={20} className="text-primary p-2" />
+				</TouchableOpacity>
+			</View>
+		</View>
+	)
+}
+
 const Community = () => {
 	const [showInfo, setShowInfo] = useState<boolean>(false)
 	const [selectedTab, setSelectedTab] = useState<TabType>("new")
@@ -131,9 +167,11 @@ const Community = () => {
 
 	const { respondFriendRequest } = useFriendSocketStore()
 	const friendRequests = useFriendStore((state) => state.friendRequests)
+	const friendSuggestions = useFriendStore((state) => state.friendSuggestions)
 
 	useEffect(() => {
 		useFriendStore.getState().fetchFriendRequests()
+		useFriendStore.getState().fetchFriendSuggestions()
 	}, [])
 
 	const handleProfilePress = (user: Profile): void => {
@@ -194,16 +232,16 @@ const Community = () => {
 
 				{/* TODO: Clean up friend suggestions */}
 				{selectedTab === "suggestions" &&
-					(friendRequests.length === 0 ? (
+					(friendSuggestions.length === 0 ? (
 						<View className="flex-1 items-center justify-center">
 							<Text className="text-center text-muted">No friend suggestions</Text>
 						</View>
 					) : (
 						<FlatList
-							data={friendRequests}
+							data={friendSuggestions}
 							keyExtractor={(item) => item.id}
 							renderItem={({ item }) => (
-								<FriendRequestItem
+								<FriendSuggestionItem
 									key={item.id}
 									item={item}
 									onProfilePress={handleProfilePress}
@@ -214,11 +252,7 @@ const Community = () => {
 					))}
 			</View>
 
-			<FriendRequestModal
-				user={selectedRequest}
-				visible={showInfo}
-				onClose={() => setShowInfo(false)}
-			/>
+			<FriendModal user={selectedRequest} visible={showInfo} onClose={() => setShowInfo(false)} />
 		</SafeAreaView>
 	)
 }

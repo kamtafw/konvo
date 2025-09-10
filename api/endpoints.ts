@@ -1,6 +1,6 @@
 export const ENDPOINTS = {
-	IPV4: '10.31.9.34',
-	
+	IPV4: "10.31.9.34",
+
 	LOGIN: "accounts/login/",
 	SIGNUP: "accounts/signup/",
 	ME: "accounts/me/",
@@ -13,6 +13,7 @@ export const ENDPOINTS = {
 
 	FRIEND_LIST: "friends/",
 	FRIEND_REQUESTS: "friends/requests/",
+	FRIEND_SUGGESTIONS: "friends/suggestions/",
 	SEND_FRIEND_REQUEST: "friends/requests/create/",
 	RESPOND_FRIEND_REQUEST: (requestId: string) => `friends/requests/${requestId}/respond/`,
 }
