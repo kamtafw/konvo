@@ -1,5 +1,5 @@
 export const ENDPOINTS = {
-	IPV4: "10.31.9.34",
+	IPV4: "10.91.84.250",
 
 	LOGIN: "accounts/login/",
 	SIGNUP: "accounts/signup/",

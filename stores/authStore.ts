@@ -1,9 +1,13 @@
 import * as authService from "@/services/auth"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 import * as SecureStore from "expo-secure-store"
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
+import { useChatSocketStore } from "./chatSocketStore"
 import { useChatStore } from "./chatStore"
+import { useFriendSocketStore } from "./friendSocketStore"
 import { useFriendStore } from "./friendStore"
+import { usePresenceSocketStore } from "./presenceSocketStore"
 import { useProfileStore } from "./profileStore"
 
 // SecureStore adapter for zustand persist
@@ -53,18 +57,49 @@ export const useAuthStore = create(
 
 			// LOGIN
 			login: async (payload) => {
+				// first disconnect any existing WebSocket
+				useChatSocketStore.getState().disconnect()
+				useFriendSocketStore.getState().disconnect()
+				usePresenceSocketStore.getState().disconnect()
+
 				const { user, access, refresh } = await authService.login(payload)
+				console.log(`#AUTH Login successful for user: ${user.id}`)
+
 				set({ user, access, refresh })
+
 				await useProfileStore.getState().fetchProfile({ force: true })
 				await useChatStore.getState().fetchChats({ force: true })
+				await useFriendStore.getState().fetchFriendList({ force: true })
+
+				console.log(`#AUTH Login complete for user: ${user.id}`)
 			},
 
 			// LOGOUT
 			logout: () => {
+				console.log(`#AUTH Logging out user: ${get().user?.id}`)
+
+				// disconnect WebSocket first
+				useChatSocketStore.getState().disconnect()
+				useFriendSocketStore.getState().disconnect()
+				usePresenceSocketStore.getState().disconnect()
+
+				// clear auth state
 				set({ user: null, access: null, refresh: null })
+
+				// reset stores
 				useProfileStore.getState().reset()
 				useChatStore.getState().reset()
 				useFriendStore.getState().reset()
+
+				// clear persisted storage
+				Promise.all([
+					SecureStore.deleteItemAsync("auth-storage").catch(() => {}),
+					AsyncStorage.removeItem("chats-storage").catch(() => {}),
+					AsyncStorage.removeItem("friends-storage").catch(() => {}),
+					AsyncStorage.removeItem("profile-storage").catch(() => {}),
+				]).then(() => {
+					console.log(`#AUTH Logout complete, all storage cleared`)
+				})
 			},
 
 			// REFRESH TOKEN

@@ -1,6 +1,6 @@
 import MessageBubble from "@/components/MessageBubble"
 import MessageInputBar from "@/components/MessageInputBar"
-import { useBackToDismissKeyboard } from "@/hooks/useKeyboard"
+import { useBackToDismissKeyboard, useKeyboardHeight } from "@/hooks/useKeyboard"
 import { useRelativeTime } from "@/hooks/useRelativeTime"
 import { useTheme } from "@/providers/ThemeProvider"
 import { useAuthStore } from "@/stores/authStore"
@@ -11,12 +11,11 @@ import { Ionicons } from "@expo/vector-icons"
 import clsx from "clsx"
 import { Stack, useLocalSearchParams } from "expo-router"
 import { cssInterop } from "nativewind"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import {
 	ActivityIndicator,
 	FlatList,
 	Image,
-	Keyboard,
 	KeyboardAvoidingView,
 	Platform,
 	Text,
@@ -77,11 +76,19 @@ const Chat = () => {
 	useBackToDismissKeyboard()
 	const { id, friendId } = useLocalSearchParams()
 	const { theme } = useTheme()
+	const { isKeyboardVisible, keyboardHeight } = useKeyboardHeight()
 
 	const { sendMessage } = useChatSocketStore()
 	const user = useAuthStore((state) => state.user)
 	const friendList = useFriendStore((state) => state.friendList)
 	const { chats, messages, loadingMessages, typing, presence } = useChatStore()
+
+	const isMyMessage = (message: any) => {
+		const currentUserId = String(user?.id || "")
+		const messageSenderId = String(message.sender || "")
+
+		return Boolean(currentUserId && messageSenderId && currentUserId === messageSenderId)
+	}
 
 	const resolveChatAndFriend = (): any => {
 		if (id && id !== "new") {
@@ -122,11 +129,11 @@ const Chat = () => {
 	const { friend, chatId } = resolveChatAndFriend()
 
 	const msgs = messages[chatId] || []
-	const friendTyping = friend ? typing?.[chatId]?.[friendId] : false
+	const friendTyping = friend ? typing?.[chatId]?.[friend?.Id] : false
 	const friendPresence = friend ? presence?.[friend?.id] : null
 
 	const listRef = useRef<FlatList>(null)
-	const [keyboardHeight, setKeyboardHeight] = useState(0)
+	// const [keyboardHeight, setKeyboardHeight] = useState(0)
 
 	useEffect(() => {
 		if (!chatId) return
@@ -148,17 +155,12 @@ const Chat = () => {
 
 	// Manage keyboard height manually
 	useEffect(() => {
-		const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
-			setKeyboardHeight(e.endCoordinates.height)
-		})
-		const hideSub = Keyboard.addListener("keyboardDidHide", () => {
-			setKeyboardHeight(0)
-		})
-		return () => {
-			showSub.remove()
-			hideSub.remove()
+		if (isKeyboardVisible && listRef.current) {
+			setTimeout(() => {
+				listRef.current?.scrollToEnd({ animated: true })
+			}, 100)
 		}
-	}, [])
+	}, [isKeyboardVisible])
 
 	return (
 		<>
@@ -193,7 +195,11 @@ const Chat = () => {
 								data={msgs}
 								keyExtractor={(item) => item.id}
 								renderItem={({ item }) => (
-									<MessageBubble message={item} isMine={String(item.sender) === String(user?.id)} />
+									<MessageBubble
+										message={item}
+										isMine={isMyMessage(item)}
+										currentUserId={String(user?.id) || ""}
+									/>
 								)}
 								keyboardShouldPersistTaps="always"
 								contentContainerStyle={{

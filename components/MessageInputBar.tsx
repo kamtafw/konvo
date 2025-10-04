@@ -3,7 +3,8 @@ import { Ionicons } from "@expo/vector-icons"
 import clsx from "clsx"
 import { cssInterop } from "nativewind"
 import { useState } from "react"
-import { TextInput, TouchableOpacity, View } from "react-native"
+import { TextInput, View } from "react-native"
+import { TouchableOpacity } from "react-native-gesture-handler"
 
 cssInterop(Ionicons, {
 	className: {
@@ -19,6 +20,7 @@ const MessageInputBar = ({ chatId, sendMessage, friendId }: any) => {
 
 	const handleSendMessage = () => {
 		if (message.trim() === "") return
+
 		sendMessage(chatId, message, friendId)
 		setMessage("")
 	}
@@ -32,7 +34,15 @@ const MessageInputBar = ({ chatId, sendMessage, friendId }: any) => {
 				className="flex-1 mr-2 p-4 bg-zinc-100 dark:bg-zinc-800 rounded-full text-onSurface"
 				placeholderTextColor="#aaa"
 			/>
-			<TouchableOpacity onPress={handleSendMessage} className="p-2 rounded-full bg-primary">
+			<TouchableOpacity
+				onPress={handleSendMessage}
+				className="p-2 rounded-full bg-primary"
+				style={{
+					padding: 8,
+					borderRadius: 9999,
+					backgroundColor: theme === "light" ? "#4e46e5" : "#6366f1",
+				}}
+			>
 				<Ionicons name="send" size={18} className={clsx(theme === "light" && "text-white")} />
 			</TouchableOpacity>
 		</View>

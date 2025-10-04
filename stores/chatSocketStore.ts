@@ -7,6 +7,7 @@ type ChatSocketState = {
 	ws: WebSocket | null
 	connect: (token: string) => void
 	disconnect: () => void
+
 	sendMessage: (chatId: string | null, text: string, otherUserId?: string) => void
 	readChat: (chatId: string) => void
 }
@@ -14,13 +15,18 @@ type ChatSocketState = {
 export const useChatSocketStore = create<ChatSocketState>((set, get) => ({
 	ws: null,
 	connect: (token) => {
-		if (get().ws) return
+		const currentUser = useAuthStore.getState().user
+
+		if (get().ws) {
+			get().ws?.close()
+			set({ ws: null })
+		}
 
 		const WS_URL = `ws://${ENDPOINTS.IPV4}:8000/ws/chats/?token=${token}`
 		const ws = new WebSocket(WS_URL)
 
 		ws.onopen = () => {
-			console.log("✅ Chat WebSocket connected")
+			console.log(`✅ Chat WebSocket connected for user: ${currentUser?.id}`)
 
 			const chatIds = useChatStore.getState().chats.map((c) => String(c.id))
 			ws.send(JSON.stringify({ type: "subscribe", payload: { chats: chatIds } }))
@@ -28,10 +34,13 @@ export const useChatSocketStore = create<ChatSocketState>((set, get) => ({
 
 		ws.onmessage = (event) => {
 			const chatStore = useChatStore.getState()
+			const authUser = useAuthStore.getState().user
 
 			try {
 				const data = JSON.parse(event.data)
 				const { payload } = data
+
+				if (!authUser) return
 
 				switch (data.type) {
 					case "new_message": {
@@ -43,12 +52,14 @@ export const useChatSocketStore = create<ChatSocketState>((set, get) => ({
 							ws.send(JSON.stringify({ type: "subscribe", payload: { chats: [chatIdStr] } }))
 						}
 
-						chatStore.addMessage(chatIdStr, {
+						const normalizedMessage = {
 							id: String(id),
 							sender: String(sender),
 							text,
 							created_at,
-						})
+						}
+
+						chatStore.addMessage(chatIdStr, normalizedMessage)
 
 						if (chatIdStr === chatStore.activeChatId) {
 							get().readChat(chatIdStr)
@@ -74,12 +85,14 @@ export const useChatSocketStore = create<ChatSocketState>((set, get) => ({
 							...payload,
 							id: String((payload as any).id),
 						}
+
 						chatStore.upsertChat(updatedChat)
 						break
 					}
 
 					case "new_chat":
 						const { chat_id, placeholder_id } = payload
+
 						if (placeholder_id && chat_id) {
 							const realChat = {
 								id: String(chat_id),
@@ -88,6 +101,7 @@ export const useChatSocketStore = create<ChatSocketState>((set, get) => ({
 								unread_count: payload.unread_count || 0,
 								created_at: payload.created_at || new Date().toISOString(),
 							}
+
 							chatStore.startChatLocal(String(placeholder_id), realChat)
 						}
 
@@ -106,17 +120,41 @@ export const useChatSocketStore = create<ChatSocketState>((set, get) => ({
 			}
 		}
 
-		ws.onclose = () => {
-			console.log("❌ Chat WebSocket closed, retrying in 3s")
+		ws.onclose = (event) => {
+			console.log(
+				`❌ Chat WebSocket closed for user ${currentUser?.id}, code: ${event.code}, reason: ${event.reason}`
+			)
 			set({ ws: null })
-			setTimeout(() => get().connect(token), 3000)
+
+			const stillLoggedIn = useAuthStore.getState().user
+			if (stillLoggedIn) {
+				console.log(`#WebSocket Reconnecting in 3s for user ${stillLoggedIn.id}`)
+				setTimeout(() => {
+					const currentToken = useAuthStore.getState().access
+					if (currentToken && stillLoggedIn) {
+						get().connect(currentToken)
+					}
+				}, 3000)
+			} else {
+				console.log(`#WebSocket Not reconnecting - user logged out`)
+			}
+		}
+
+		ws.onerror = (error) => {
+			console.error(`#WebSocket Error for user ${currentUser?.id}:`, error)
 		}
 
 		set({ ws })
 	},
 
 	disconnect: () => {
-		get().ws?.close()
+		const currentUser = useAuthStore.getState().user
+		console.log(`#WebSocket Disconnecting for user: ${currentUser?.id}`)
+
+		const ws = get().ws
+		if (ws) {
+			ws.close(1000, "User logout")
+		}
 		set({ ws: null })
 	},
 
@@ -125,6 +163,7 @@ export const useChatSocketStore = create<ChatSocketState>((set, get) => ({
 		if (ws?.readyState === WebSocket.OPEN) {
 			const isNewChat = !chatId || chatId === "new"
 			const type = `chat:${isNewChat ? "new" : "existing"}`
+			const currentUser = useAuthStore.getState().user
 
 			let actualChatId = chatId
 			let placeholderId: string | undefined
@@ -135,7 +174,6 @@ export const useChatSocketStore = create<ChatSocketState>((set, get) => ({
 
 				// create temporary chat in the store for immediate UI feedback
 				const chatStore = useChatStore.getState()
-				const currentUser = useAuthStore.getState().user
 
 				if (currentUser && otherUserId) {
 					const placeholderMessage = {
@@ -145,6 +183,7 @@ export const useChatSocketStore = create<ChatSocketState>((set, get) => ({
 						created_at: new Date().toISOString(),
 						read_at: undefined,
 					}
+
 					chatStore.addMessage(placeholderId, placeholderMessage)
 				}
 			}

@@ -30,7 +30,7 @@ export const validatePhone = (phone: string) => {
 
 export const validateName = (name: string) => {
 	if (!name) return true
-	return String(name).length >= 4
+	return String(name).length >= 3
 }
 
 export const validateGithub = (name: string) => {

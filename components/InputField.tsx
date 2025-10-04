@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons"
 import { cssInterop } from "nativewind"
-import { forwardRef, useState } from "react"
-import { Text, TextInput, TextInputProps, TouchableOpacity, View } from "react-native"
+import { useState } from "react"
+import { Text, TextInput, TouchableOpacity, View } from "react-native"
 
 cssInterop(Ionicons, {
 	className: {
@@ -9,11 +9,6 @@ cssInterop(Ionicons, {
 		nativeStyleToProp: { height: true, width: true, size: true },
 	},
 })
-
-type InputFieldProps = TextInputProps & {
-	label: string
-	error?: string | null
-}
 
 const InputField = ({ label, error, secureTextEntry, ...props }: any) => {
 	const [showPassword, setShowPassword] = useState(false)
@@ -37,23 +32,5 @@ const InputField = ({ label, error, secureTextEntry, ...props }: any) => {
 		</View>
 	)
 }
-
-const InputField2 = forwardRef<TextInputProps, InputFieldProps>(
-	({ label, error, ...props }, ref) => {
-		return (
-			<View className="mb-5 gap-2">
-				<Text className="text-sm text-textPrimary">{label}</Text>
-				<TextInput
-					ref={ref}
-					{...props}
-					className={`rounded-lg px-4 py-3 border ${
-						error ? "border-error" : "border-border"
-					} text-onSurface text-sm placeholder:text-muted`}
-				/>
-				{error && <Text className="text-xs text-error">{error}</Text>}
-			</View>
-		)
-	}
-)
 
 export default InputField

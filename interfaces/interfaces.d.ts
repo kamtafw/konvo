@@ -25,16 +25,19 @@ interface Chat {
 
 interface Profile {
 	id: string
+	bio: string
 	name: string
-	avatar_url: string
 	phone: string
 	email: string
-	bio: string
-	website: string
 	github: string
-	date_joined: string
+	website: string
+
 	avatarUrl: string
 	dateJoined: string
+	mutualFriendsCount: number
+
+	avatar_url: string
+	date_joined: string
 }
 
 interface Friend {

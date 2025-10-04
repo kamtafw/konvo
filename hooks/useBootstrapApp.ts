@@ -12,9 +12,6 @@ export const useBootstrapApp = () => {
 	const [ready, setReady] = useState(false)
 	const user = useAuthStore((state) => state.user)
 	const token = useAuthStore((state) => state.access)
-	const connectChatSocket = useChatSocketStore((state) => state.connect)
-	const connectFriendSocket = useFriendSocketStore((state) => state.connect)
-	const connectPresenceSocket = usePresenceSocketStore((state) => state.connect)
 
 	useEffect(() => {
 		const init = async () => {
@@ -31,9 +28,9 @@ export const useBootstrapApp = () => {
 			await useChatStore.getState().fetchChats({ force: false })
 
 			if (token) {
-				connectChatSocket(token)
-				connectFriendSocket(token)
-				connectPresenceSocket(token)
+				useChatSocketStore.getState().connect(token)
+				useFriendSocketStore.getState().connect(token)
+				usePresenceSocketStore.getState().connect(token)
 			}
 
 			setReady(true)

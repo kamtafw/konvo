@@ -4,8 +4,6 @@ import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 import { useAuthStore } from "./authStore"
 
-
-
 interface Chat {
 	id: string
 	participants: Participant[]
@@ -178,21 +176,55 @@ export const useChatStore = create(
 			addMessage: (chatId, message) => {
 				const chatIdStr = String(chatId)
 				const currentUser = String(useAuthStore.getState().user?.id || "")
-				const isMine = String(message.sender) === currentUser
+				const messageSender = String(message.sender)
+				const isMine = messageSender === currentUser
 				const activeChatId = get().activeChatId
+
+				// TODO: debugging (remove later)
+				console.log(`#addMessage DEBUG:`, {
+					chatId: chatIdStr,
+					messageId: message.id,
+					messageSender,
+					messageText: message.text,
+					currentUser,
+					isMine,
+					activeChatId,
+					isActiveChatId: activeChatId === chatIdStr,
+				})
 
 				set((state) => {
 					const existing = state.messages[chatIdStr] || []
-					const msgs = [
-						...existing,
-						{ ...message, id: String(message.id), sender: String(message.sender) },
-					]
+					const existingIndex = existing.findIndex((m) => m.id === String(message.id))
+
+					let msgs
+					if (existingIndex !== -1) {
+						msgs = [...existing]
+						msgs[existingIndex] = {
+							...message,
+							id: String(message.id),
+							sender: String(message.sender),
+						}
+						console.log(`#addMessage Updated existing message at index ${existingIndex}`)
+					} else {
+						msgs = [
+							...existing,
+							{ ...message, id: String(message.id), sender: String(message.sender) },
+						]
+						console.log(`#addMessage Added new message, total count: ${msgs.length}`)
+					}
 
 					const chats = state.chats.map((c) => {
 						if (String(c.id) !== chatIdStr) return c
 
 						const inOpenChat = activeChatId === chatIdStr
 						const nextUnread = isMine || inOpenChat ? 0 : (c.unread_count || 0) + 1
+
+						console.log(`#addMessage Updating chat ${chatIdStr}:`, {
+							isMine,
+							inOpenChat,
+							previousUnread: c.unread_count,
+							nextUnread,
+						})
 
 						return {
 							...c,
@@ -248,7 +280,6 @@ export const useChatStore = create(
 
 			setActiveChat: (chatId) => set({ activeChatId: chatId }),
 
-			// TODO: Review Code
 			setTyping: (chatId, userId, typing) => {
 				const state = get()
 
@@ -299,7 +330,11 @@ export const useChatStore = create(
 				}))
 			},
 
-			reset: () =>
+			reset: () => {
+				// clear any pending timers
+				const state = get()
+				Object.values(state.typingTimers).forEach((timerId) => clearTimeout(timerId as number))
+
 				set({
 					chats: [],
 					messages: {},
@@ -307,9 +342,14 @@ export const useChatStore = create(
 					loadingMessages: {},
 					lastFetchedChatsAt: null,
 					lastFetchedMessagesAt: {},
+					typing: {},
+					typingTimers: {},
+					activeChatId: null,
+					presence: {},
 					error: null,
 					hydrated: false,
-				}),
+				})
+			},
 		}),
 		{
 			name: "chats-storage",

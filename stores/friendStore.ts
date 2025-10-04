@@ -23,11 +23,9 @@ type FriendState = {
 	respondFriendRequest: (requestId: string, action: "accept" | "reject") => Promise<void>
 
 	addFriend: (friend: any) => void
-	// removeFriend: () => void
-	// upsertFriend: () => void
 	addFriendRequest: (friendRequest: any) => void
 	removeFriendRequest: (requestId: string) => void
-	// upsertFriendRequest: (friendRequest: any) => void
+	removeFriendSuggestion: (suggestionId: string) => void
 
 	reset: () => void
 }
@@ -80,7 +78,13 @@ export const useFriendStore = create(
 					const normalized = data.map((f: any) => ({
 						id: String(f.id),
 						createdAt: f.created_at,
-						from: f.from_user,
+						from: {
+							...f.from_user,
+							id: String(f.from_user.id),
+							avatarUrl: f.from_user.avatar_url,
+							dateJoined: f.from_user.date_joined,
+							mutualFriendsCount: f.from_user.mutual_friends_count,
+						},
 					}))
 					set({ friendRequests: normalized, lastFetchedFriendRequestsAt: Date.now() })
 				} catch (e: any) {
@@ -90,7 +94,7 @@ export const useFriendStore = create(
 				}
 			},
 
-			fetchFriendSuggestions: async ({ force = false, maxAgeMs = 120_000 } = {}) => {
+			fetchFriendSuggestions: async ({ force = false, maxAgeMs = 60_000 } = {}) => {
 				const { lastFetchedFriendSuggestionsAt, friendSuggestions } = get()
 				const isStale =
 					!lastFetchedFriendSuggestionsAt || Date.now() - lastFetchedFriendSuggestionsAt > maxAgeMs
@@ -104,6 +108,8 @@ export const useFriendStore = create(
 						id: String(f.id),
 						avatarUrl: f.avatar_url,
 						createdAt: f.created_at,
+						dateJoined: f.date_joined,
+						mutualFriendsCount: f.mutual_friends_count,
 					}))
 					set({ friendSuggestions: normalized, lastFetchedFriendSuggestionsAt: Date.now() })
 				} catch (e: any) {
@@ -146,7 +152,10 @@ export const useFriendStore = create(
 						{
 							...friend,
 							id: String(friend.id),
+							avatarUrl: friend.avatar_url,
 							createdAt: friend.created_at,
+							dateJoined: friend.date_joined,
+							mutualFriendsCount: friend.mutual_friends_count,
 						},
 					]
 
@@ -155,6 +164,8 @@ export const useFriendStore = create(
 			},
 
 			addFriendRequest: (friendRequest) => {
+				const { from_user } = friendRequest
+
 				set((state) => {
 					const existing = state.friendRequests
 					const requests = [
@@ -162,7 +173,13 @@ export const useFriendStore = create(
 						{
 							id: String(friendRequest.id),
 							createdAt: friendRequest.created_at,
-							from: friendRequest.from_user,
+							from: {
+								...from_user,
+								id: String(from_user.id),
+								avatarUrl: from_user.avatar_url,
+								dateJoined: from_user.date_joined,
+								mutualFriendsCount: from_user.mutual_friends_count,
+							},
 						},
 					]
 
@@ -173,6 +190,14 @@ export const useFriendStore = create(
 			removeFriendRequest: (requestId) => {
 				set((state) => ({
 					friendRequests: state.friendRequests.filter((req) => req.id !== String(requestId)),
+				}))
+			},
+
+			removeFriendSuggestion: (suggestionId) => {
+				set((state) => ({
+					friendSuggestions: state.friendSuggestions.filter(
+						(sug) => sug.id !== String(suggestionId)
+					),
 				}))
 			},
 

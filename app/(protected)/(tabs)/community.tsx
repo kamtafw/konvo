@@ -4,8 +4,7 @@ import { Feather, Ionicons } from "@expo/vector-icons"
 import clsx from "clsx"
 import { cssInterop } from "nativewind"
 import { useEffect, useState } from "react"
-import { Image, Modal, Text, TouchableOpacity, View } from "react-native"
-import { FlatList } from "react-native-gesture-handler"
+import { Image, Modal, Text, TouchableOpacity, View, FlatList } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 cssInterop(Ionicons, {
@@ -26,13 +25,14 @@ interface FriendRequestItemProps {
 interface FriendSuggestionItemProps {
 	item: Profile
 	onProfilePress: (user: Profile) => void
-	onRespondPress: (requestId: string, action: "accept" | "reject") => void
+	onActionPress: (suggestionId: string, action: "add" | "remove") => void
 }
 
 interface FriendModalProps {
 	user: Profile | null
 	visible: boolean
 	onClose: () => void
+	friendSuggestionItem?: boolean
 }
 
 const InfoRow = ({ icon, label, value, last = false }: any) => {
@@ -47,27 +47,38 @@ const InfoRow = ({ icon, label, value, last = false }: any) => {
 	)
 }
 
-const FriendModal = ({ user, visible, onClose }: FriendModalProps) => {
-	const uri = user?.avatar_url
+const FriendModal = ({
+	user,
+	visible,
+	onClose,
+	friendSuggestionItem = false,
+}: FriendModalProps) => {
+	const uri = user?.avatarUrl
+	const mutualFriendsCount = user?.mutualFriendsCount || 0
 
 	return (
 		<Modal visible={visible} animationType="slide" transparent={true}>
 			<View className="flex-1 bg-black/50 justify-end">
 				<View className="items-center">
 					<Image
-						className={`w-28 h-28 rounded-full border-4 border-primary mb-[-40] z-10 ${!uri && "bg-primary"}`}
+						className={`w-28 h-28 rounded-full border-4 border-textPrimary mb-[-40] z-10 ${!uri && "bg-primary"}`}
 						source={uri ? { uri } : require("../../../assets/images/avatar.png")}
 					/>
 				</View>
 
-				<View className="bg-primary rounded-t-2xl pt-16 px-5 min-h-[45%] items-center">
+				<View className="bg-textPrimary rounded-t-2xl pt-16 px-5 min-h-[45%] items-center">
 					<TouchableOpacity
 						className="absolute top-4 right-4 bg-gray-300 rounded-full z-20"
 						onPress={onClose}
 					>
 						<Ionicons name="close-outline" size={20} className="text-onPrimary p-1" />
 					</TouchableOpacity>
-					<Text className="text-2xl text-surface font-bold mb-1">{user?.name}</Text>
+					<Text className="text-2xl text-surface font-bold">{user?.name}</Text>
+					{mutualFriendsCount > 0 && (
+						<Text className="text-sm text-textSecondary mb-1">
+							{`(${mutualFriendsCount} mutual ${mutualFriendsCount > 1 ? "friends" : "friend"})`}
+						</Text>
+					)}
 					<Text className="text-base text-border mb-6">{user?.bio}</Text>
 
 					<View className="w-full p-3 mb-8 bg-surface rounded-xl">
@@ -76,16 +87,29 @@ const FriendModal = ({ user, visible, onClose }: FriendModalProps) => {
 						<InfoRow icon="github" label="Github" value={user?.github || "---"} last={true} />
 					</View>
 
-					<View className="flex-row w-full gap-3">
-						<TouchableOpacity className="flex-1 flex-row justify-center items-center py-4 gap-4 bg-red-100 rounded-full">
-							<Ionicons name="trash-outline" size={20} className="text-error" />
-							<Text className="text-base text-error font-semibold">Delete</Text>
-						</TouchableOpacity>
-						<TouchableOpacity className="flex-1 flex-row justify-center items-center py-4 gap-4 bg-green-100 rounded-full">
-							<Ionicons name="checkmark-outline" size={20} className="text-secondary" />
-							<Text className="text-base text-secondary font-semibold">Accept</Text>
-						</TouchableOpacity>
-					</View>
+					{friendSuggestionItem ? (
+						<View className="flex-row w-full gap-3">
+							<TouchableOpacity className="flex-1 flex-row justify-center items-center py-4 gap-4 bg-red-100 rounded-full">
+								<Ionicons name="remove-circle-outline" size={20} className="text-error" />
+								<Text className="text-base text-error font-semibold">Remove Suggestion</Text>
+							</TouchableOpacity>
+							<TouchableOpacity className="flex-1 flex-row justify-center items-center py-4 gap-4 bg-purple-100 rounded-full">
+								<Ionicons name="person-add-outline" size={20} className="text-primary" />
+								<Text className="text-base text-primary font-semibold">Add Friend</Text>
+							</TouchableOpacity>
+						</View>
+					) : (
+						<View className="flex-row w-full gap-3">
+							<TouchableOpacity className="flex-1 flex-row justify-center items-center py-4 gap-4 bg-red-100 rounded-full">
+								<Ionicons name="trash-outline" size={20} className="text-error" />
+								<Text className="text-base text-error font-semibold">Delete</Text>
+							</TouchableOpacity>
+							<TouchableOpacity className="flex-1 flex-row justify-center items-center py-4 gap-4 bg-green-100 rounded-full">
+								<Ionicons name="checkmark-outline" size={20} className="text-secondary" />
+								<Text className="text-base text-secondary font-semibold">Accept</Text>
+							</TouchableOpacity>
+						</View>
+					)}
 				</View>
 			</View>
 		</Modal>
@@ -95,7 +119,7 @@ const FriendModal = ({ user, visible, onClose }: FriendModalProps) => {
 const FriendRequestItem = ({ item, onProfilePress, onRespondPress }: FriendRequestItemProps) => {
 	const requestId = item.id
 	const from = item.from
-	const uri = from?.avatar_url
+	const uri = from?.avatarUrl
 
 	return (
 		<View className="flex-row items-center px-1 py-4 border-b border-border">
@@ -130,7 +154,12 @@ const FriendRequestItem = ({ item, onProfilePress, onRespondPress }: FriendReque
 	)
 }
 
-const FriendSuggestionItem = ({ item, onProfilePress }: FriendSuggestionItemProps) => {
+const FriendSuggestionItem = ({
+	item,
+	onProfilePress,
+	onActionPress,
+}: FriendSuggestionItemProps) => {
+	const suggestionId = item.id
 	const uri = item?.avatarUrl
 
 	return (
@@ -149,10 +178,16 @@ const FriendSuggestionItem = ({ item, onProfilePress }: FriendSuggestionItemProp
 				</View>
 			</TouchableOpacity>
 			<View className="flex-row items-center gap-4">
-				<TouchableOpacity className="border border-error bg-red-100 rounded-full">
+				<TouchableOpacity
+					className="border border-error bg-red-100 rounded-full"
+					onPress={() => onActionPress(suggestionId, "remove")}
+				>
 					<Ionicons name="remove-outline" size={20} className="text-error p-2" />
 				</TouchableOpacity>
-				<TouchableOpacity className="border border-primary bg-purple-100 rounded-full">
+				<TouchableOpacity
+					className="border border-primary bg-purple-100 rounded-full"
+					onPress={() => onActionPress(suggestionId, "add")}
+				>
 					<Ionicons name="person-add-outline" size={20} className="text-primary p-2" />
 				</TouchableOpacity>
 			</View>
@@ -163,9 +198,9 @@ const FriendSuggestionItem = ({ item, onProfilePress }: FriendSuggestionItemProp
 const Community = () => {
 	const [showInfo, setShowInfo] = useState<boolean>(false)
 	const [selectedTab, setSelectedTab] = useState<TabType>("new")
-	const [selectedRequest, setSelectedRequest] = useState<Profile | null>(null)
+	const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null)
 
-	const { respondFriendRequest } = useFriendSocketStore()
+	const { actOnFriendSuggestion, respondFriendRequest } = useFriendSocketStore()
 	const friendRequests = useFriendStore((state) => state.friendRequests)
 	const friendSuggestions = useFriendStore((state) => state.friendSuggestions)
 
@@ -175,12 +210,16 @@ const Community = () => {
 	}, [])
 
 	const handleProfilePress = (user: Profile): void => {
-		setSelectedRequest(user)
+		setSelectedProfile(user)
 		setShowInfo(true)
 	}
 
 	const handleRespondFriendRequest = (requestId: string, action: "accept" | "reject") => {
 		respondFriendRequest(requestId, action)
+	}
+
+	const handleActionFriendSuggestion = (suggestionId: string, action: "add" | "remove") => {
+		actOnFriendSuggestion(suggestionId, action)
 	}
 
 	return (
@@ -245,14 +284,19 @@ const Community = () => {
 									key={item.id}
 									item={item}
 									onProfilePress={handleProfilePress}
-									onRespondPress={handleRespondFriendRequest}
+									onActionPress={handleActionFriendSuggestion}
 								/>
 							)}
 						/>
 					))}
 			</View>
 
-			<FriendModal user={selectedRequest} visible={showInfo} onClose={() => setShowInfo(false)} />
+			<FriendModal
+				user={selectedProfile}
+				visible={showInfo}
+				onClose={() => setShowInfo(false)}
+				friendSuggestionItem={selectedTab === "suggestions"}
+			/>
 		</SafeAreaView>
 	)
 }

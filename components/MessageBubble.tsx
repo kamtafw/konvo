@@ -12,36 +12,41 @@ cssInterop(Ionicons, {
 interface Props {
 	message: Message
 	isMine: boolean
+	currentUserId: string
 }
 
-const MessageBubble = ({ message, isMine }: Props) => {
-	const alignment = isMine ? "items-end" : "items-start"
-	const bg = isMine ? "bg-primary" : "bg-surface"
-	const textColor = isMine ? "text-onPrimary" : "text-onSurface"
-	const timestampColor = isMine ? "text-background" : "text-muted"
+const MessageBubble = ({ message, isMine, currentUserId }: Props) => {
+	const safeIsMine = Boolean(
+		isMine && currentUserId && String(message.sender) === String(currentUserId)
+	)
+
+	const alignment = safeIsMine ? "items-end" : "items-start"
+	const bg = safeIsMine ? "bg-primary" : "bg-surface"
+	const textColor = safeIsMine ? "text-onPrimary" : "text-onSurface"
+	const timestampColor = safeIsMine ? "text-background" : "text-muted"
 
 	return (
 		message.text && (
 			<View className={`mb-3 ${alignment}`}>
-				<View className={`flex-row gap-2 items-end rounded-xl px-3 py-2 ${bg} max-w-[75%]`}>
-					<Text className={`${textColor} pb-1`}>{message.text}</Text>
+				<View className={`flex-col rounded-xl px-3 py-2 ${bg} max-w-[75%]`}>
+					<Text className={`${textColor}`}>{message.text}</Text>
 
 					{/* Timestamp + status */}
-					<View className="flex-row items-end">
+					<View className="flex-row items-center justify-end">
 						<Text className={`text-[10px] ${timestampColor}`}>
-							{new Date(message.created_at).toLocaleTimeString([], {
+							{`(${new Date(message.created_at).toLocaleTimeString([], {
 								hour: "2-digit",
 								minute: "2-digit",
-							})}{" "}
+							})})`}
 						</Text>
-						{isMine ? (
-							message.read_at ? (
-								<Ionicons name="checkmark-done-outline" size={12} className={timestampColor} />
-							) : (
-								<Ionicons name="checkmark-outline" size={12} className={timestampColor} />
-							)
-						) : (
-							""
+						{safeIsMine && (
+							<View className="ml-1">
+								{message.read_at ? (
+									<Ionicons name="checkmark-done-outline" size={10} className={timestampColor} />
+								) : (
+									<Ionicons name="checkmark-outline" size={10} className={timestampColor} />
+								)}
+							</View>
 						)}
 					</View>
 				</View>

@@ -46,7 +46,7 @@ export const useProfileForm = (profile: Profile | null) => {
 				if (!validateEmail(value)) err = "Invalid email address"
 				break
 			case "name":
-				if (!validateName(value)) err = "Name must be at least 4 characters"
+				if (!validateName(value)) err = "Name must be at least 3 characters"
 				break
 			case "website":
 				if (!validateWebsite(value)) err = "Invalid website address"
